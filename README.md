@@ -53,6 +53,7 @@ dotfiles/
 | `Tab-h/j/k/l` | 無 | 有 | Ubuntu 透過 keyd 將 `Tab` 作為導航層，`h/j/k/l` 對應左/下/上/右 |
 
 fzf 搜尋會使用 `fd` 作為後端；預覽視窗會用 `eza` 顯示目錄內容，檔案則顯示前 50 行。
+Ubuntu 的 ble.sh 會保留語法高亮，但關閉自動補全、歷史自動補全、Tab menu completion 與 menu filter，避免候選項一次刷滿整個終端。
 
 Ubuntu 會從源碼安裝 [keyd](https://github.com/rvaiya/keyd) 的最新穩定 tag，套用 `ubuntu/keyd/default.conf` 到 `/etc/keyd/default.conf`，通過 `keyd check` 後啟用 systemd 服務。單按 `Tab` 仍是正常 Tab；按住 `Tab` 再按 `h/j/k/l` 則輸出方向鍵。
 
