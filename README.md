@@ -26,8 +26,9 @@ dotfiles/
 │   ├── .zshrc      # macOS zsh 設定
 │   └── install.sh  # macOS 一鍵安裝腳本
 └── ubuntu/
-    ├── .bashrc     # Ubuntu bash 設定
-    └── install.sh  # Ubuntu 一鍵安裝腳本
+    ├── .bashrc            # Ubuntu bash 設定
+    ├── install.sh         # Ubuntu 一鍵安裝腳本
+    └── keyd/default.conf  # Ubuntu keyd 鍵盤映射
 ```
 
 ## 共用功能
@@ -49,8 +50,11 @@ dotfiles/
 | `Ctrl-T` | 取消綁定 | 取消綁定 | 避免與自訂 fzf 檔案搜尋鍵衝突 |
 | `↑` / `↓` | 有 | shell/ble.sh 預設 | macOS 依目前輸入做 history substring 搜尋 |
 | `Opt-←` / `Opt-→` | 有 | shell 預設 | macOS 以單字為單位左右移動游標 |
+| `Tab-h/j/k/l` | 無 | 有 | Ubuntu 透過 keyd 將 `Tab` 作為導航層，`h/j/k/l` 對應左/下/上/右 |
 
 fzf 搜尋會使用 `fd` 作為後端；預覽視窗會用 `eza` 顯示目錄內容，檔案則顯示前 50 行。
+
+Ubuntu 會從源碼安裝 [keyd](https://github.com/rvaiya/keyd) 的最新穩定 tag，套用 `ubuntu/keyd/default.conf` 到 `/etc/keyd/default.conf`，通過 `keyd check` 後啟用 systemd 服務。單按 `Tab` 仍是正常 Tab；按住 `Tab` 再按 `h/j/k/l` 則輸出方向鍵。
 
 ## 平台差異
 
@@ -63,6 +67,7 @@ fzf 搜尋會使用 `fd` 作為後端；預覽視窗會用 `eza` 顯示目錄內
 | Prompt | starship | 系統預設 |
 | Conda 懶載入 | 有 | 無 |
 | fastfetch | 有 | 無 |
+| 系統鍵盤映射 | 無 | keyd |
 
 ## 穩定性與啟動優化
 
@@ -71,6 +76,7 @@ fzf 搜尋會使用 `fd` 作為後端；預覽視窗會用 `eza` 顯示目錄內
 - `TERM=dumb` 時 macOS 會跳過 starship，避免非標準終端輸出錯誤。
 - Ubuntu 的 PATH 會去重，反覆 `source ~/.bashrc` 不會累加重複路徑。
 - 缺少 ble.sh、Kaku、bun、pipx 等可選工具時，rc 會安靜略過。
+- Ubuntu keyd 設定會先備份既有 `/etc/keyd/default.conf`，再套用此 repo 的版本。
 
 ## 手動套用
 

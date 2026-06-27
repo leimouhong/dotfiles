@@ -31,7 +31,7 @@ echo "==> 更新套件"
 sudo apt update -qq
 
 echo "==> 安裝基礎套件"
-sudo apt install -y git curl unzip
+sudo apt install -y git curl unzip wget gpg ca-certificates build-essential
 
 echo "==> 安裝 ripgrep"
 RG_VER=$(_latest BurntSushi/ripgrep)
@@ -72,6 +72,54 @@ echo "==> 安裝 ble.sh"
 git clone -q --recursive https://github.com/akinomyoga/ble.sh.git /tmp/ble.sh
 make -C /tmp/ble.sh install PREFIX=~/.local --quiet
 rm -rf /tmp/ble.sh
+
+echo "==> 從源碼安裝 keyd"
+KEYD_SRC=$(mktemp -d)
+KEYD_TAG=$(
+  git ls-remote --tags --refs https://github.com/rvaiya/keyd.git 'v*' \
+    | awk -F/ '{print $3}' \
+    | grep -E '^v[0-9]+(\.[0-9]+)*$' \
+    | sort -V \
+    | tail -n1 \
+    || true
+)
+if [[ -n "$KEYD_TAG" ]]; then
+  git clone -q --depth 1 --branch "$KEYD_TAG" https://github.com/rvaiya/keyd.git "$KEYD_SRC"
+else
+  git clone -q --depth 1 https://github.com/rvaiya/keyd.git "$KEYD_SRC"
+fi
+make -C "$KEYD_SRC" --quiet
+sudo make -C "$KEYD_SRC" install --quiet
+rm -rf "$KEYD_SRC"
+unset KEYD_SRC KEYD_TAG
+
+echo "==> 套用 keyd 設定（Tab + hjkl 方向鍵）"
+sudo mkdir -p /etc/keyd
+if [[ -f /etc/keyd/default.conf ]]; then
+  sudo cp /etc/keyd/default.conf "/etc/keyd/default.conf.backup.$(date +%Y%m%d_%H%M%S)"
+  echo "   已備份原有 keyd 設定至 /etc/keyd/default.conf.backup.*"
+fi
+if [[ -f "$SCRIPT_DIR/keyd/default.conf" ]]; then
+  sudo install -m 0644 "$SCRIPT_DIR/keyd/default.conf" /etc/keyd/default.conf
+else
+  sudo tee /etc/keyd/default.conf >/dev/null <<'EOF'
+[ids]
+*
+
+[main]
+tab = overload(nav, tab)
+
+[nav]
+h = left
+j = down
+k = up
+l = right
+EOF
+fi
+sudo keyd check /etc/keyd/default.conf
+sudo systemctl daemon-reload
+sudo systemctl enable --now keyd
+sudo keyd reload
 
 echo "==> 安裝 Neovim（AppImage，$DPKG_ARCH）"
 curl -sLo /tmp/nvim.appimage \
