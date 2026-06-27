@@ -31,7 +31,7 @@ echo "==> 更新套件"
 sudo apt update -qq
 
 echo "==> 安裝基礎套件"
-sudo apt install -y git curl unzip wget gpg ca-certificates build-essential
+sudo apt install -y git curl unzip wget gpg ca-certificates build-essential gawk
 
 echo "==> 安裝 ripgrep"
 RG_VER=$(_latest BurntSushi/ripgrep)
@@ -69,9 +69,11 @@ echo "==> 安裝 zoxide"
 curl -sS https://raw.githubusercontent.com/ajeetdsouza/zoxide/main/install.sh | bash
 
 echo "==> 安裝 ble.sh"
-git clone -q --recursive https://github.com/akinomyoga/ble.sh.git /tmp/ble.sh
-make -C /tmp/ble.sh install PREFIX=~/.local --quiet
-rm -rf /tmp/ble.sh
+BLE_SRC=$(mktemp -d)
+git clone -q --recursive https://github.com/akinomyoga/ble.sh.git "$BLE_SRC"
+make -C "$BLE_SRC" install PREFIX=~/.local --quiet
+rm -rf "$BLE_SRC"
+unset BLE_SRC
 
 echo "==> 從源碼安裝 keyd"
 KEYD_SRC=$(mktemp -d)
