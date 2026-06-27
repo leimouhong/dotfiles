@@ -47,6 +47,7 @@ dotfiles/
 | --- | --- | --- | --- |
 | `Opt-X` / `Alt-X` | 有 | 有 | 用 fzf 搜尋檔案，選中後插入命令列 |
 | `Opt-C` / `Alt-C` | 有 | 有 | 用 fzf 搜尋目錄，選中後直接跳轉 |
+| `Ctrl-R` | shell 預設 | 有 | Ubuntu 用 fzf 搜尋 history；多行命令顯示為單行，選中後保留原始多行內容 |
 | `Ctrl-T` | 取消綁定 | 取消綁定 | 避免與自訂 fzf 檔案搜尋鍵衝突 |
 | `↑` / `↓` | 有 | shell/ble.sh 預設 | macOS 依目前輸入做 history substring 搜尋 |
 | `Opt-←` / `Opt-→` | 有 | shell 預設 | macOS 以單字為單位左右移動游標 |

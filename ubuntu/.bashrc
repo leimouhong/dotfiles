@@ -61,10 +61,45 @@ export FZF_DEFAULT_OPTS="--ansi --layout=reverse --info=inline \
 export FZF_CTRL_T_OPTS='--preview "if [ -d {} ]; then eza -1 --color=always --group-directories-first {}; else head -n 50 {}; fi"'
 export FZF_ALT_C_OPTS='--preview "eza -1 --color=always --group-directories-first {}"'
 
+__dotfiles_fzf_history_widget() {
+  command -v fzf >/dev/null 2>&1 || return 1
+
+  local selected num cmd
+  selected="$(
+    history | awk '
+      function flush() {
+        if (entry != "") {
+          gsub(/\t/, "  ", entry)
+          print num "\t" entry
+        }
+      }
+      /^[[:space:]]*[0-9]+[[:space:]]+/ {
+        flush()
+        num = $1
+        sub(/^[[:space:]]*[0-9]+[[:space:]]+/, "")
+        entry = $0
+        next
+      }
+      {
+        gsub(/\t/, "  ")
+        entry = entry "\\n" $0
+      }
+      END { flush() }
+    ' | fzf --tac --no-sort --query "${READLINE_LINE:-}" --delimiter=$'\t' --with-nth=2.. --bind 'ctrl-r:toggle-sort'
+  )" || return
+
+  [[ -n "$selected" ]] || return 0
+  num="${selected%%$'\t'*}"
+  cmd="$(fc -ln "$num" "$num" 2>/dev/null)" || return
+  READLINE_LINE="$cmd"
+  READLINE_POINT=${#READLINE_LINE}
+}
+
 # ble.sh 與 fzf 需使用 ble 官方整合，避免 Alt-C 出現 [ble: EOF] 等相容性問題
 __dotfiles_ble_fzf_bindings() {
   ble-bind -x 'M-x' 'fzf-file-widget'
   ble-bind -c 'M-c' 'ble/util/eval-stdout "__fzf_cd__"'
+  ble-bind -x 'C-r' '__dotfiles_fzf_history_widget'
 }
 
 if [[ ${BLE_VERSION-} ]]; then
@@ -86,6 +121,10 @@ elif [[ -r ~/.fzf/shell/key-bindings.bash && -r ~/.fzf/shell/completion.bash ]];
   # Alt-C 目錄跳轉（ESC+c）
   bind -m emacs -x '"\ec": __fzf_cd__' 2>/dev/null
   bind -m vi-insert -x '"\ec": __fzf_cd__' 2>/dev/null
+
+  # Ctrl-R 歷史搜尋：顯示時壓成單行，插入時保留原始 multiline 命令
+  bind -m emacs -x '"\C-r": __dotfiles_fzf_history_widget' 2>/dev/null
+  bind -m vi-insert -x '"\C-r": __dotfiles_fzf_history_widget' 2>/dev/null
 fi
 
 ########################################
