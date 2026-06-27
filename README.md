@@ -49,12 +49,14 @@ dotfiles/
 | `Opt-C` / `Alt-C` | 有 | 有 | 用 fzf 搜尋目錄，選中後直接跳轉 |
 | `Ctrl-R` | shell 預設 | 有 | Ubuntu 用 fzf 搜尋 history；多行命令顯示為單行，選中後保留原始多行內容 |
 | `Ctrl-T` | 取消綁定 | 取消綁定 | 避免與自訂 fzf 檔案搜尋鍵衝突 |
-| `↑` / `↓` | 有 | shell/ble.sh 預設 | macOS 依目前輸入做 history substring 搜尋 |
+| `↑` / `↓` | 有 | 有 | 依目前輸入做 history substring 搜尋 |
 | `Opt-←` / `Opt-→` | 有 | shell 預設 | macOS 以單字為單位左右移動游標 |
 | `Tab-h/j/k/l` | 無 | 有 | Ubuntu 透過 keyd 將 `Tab` 作為導航層，`h/j/k/l` 對應左/下/上/右 |
 
 fzf 搜尋會使用 `fd` 作為後端；預覽視窗會用 `eza` 顯示目錄內容，檔案則顯示前 50 行。
 Ubuntu 的 ble.sh 會保留語法高亮、一般自動補全、歷史自動補全、Tab 候選選單與選單內過濾；`Ctrl-R` 提供較適合 multiline history 的 fzf 搜尋視圖。
+
+多行 history 的處理策略是保留為單筆紀錄，不拆成多個單行命令。`Ctrl-R` 搜尋時會把多行顯示壓成單行，選中後仍插入原始多行內容；`↑` / `↓` 則依目前輸入做 substring 搜尋。若要檢查某筆多行紀錄，可用 `fc -ln <編號> <編號> | sed -n l`；若要刪除不想保留的紀錄，可用 `history -d <編號>` 後接 `history -w`。
 
 Ubuntu 會從源碼安裝 [keyd](https://github.com/rvaiya/keyd) 的最新穩定 tag，套用 `ubuntu/keyd/default.conf` 到 `/etc/keyd/default.conf`，通過 `keyd check` 後啟用 systemd 服務。單按 `Tab` 仍是正常 Tab；按住 `Tab` 再按 `h/j/k/l` 則輸出方向鍵。
 

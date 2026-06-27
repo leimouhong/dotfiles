@@ -97,6 +97,11 @@ __dotfiles_fzf_history_widget() {
 }
 
 # ble.sh 與 fzf 需使用 ble 官方整合，避免 Alt-C 出現 [ble: EOF] 等相容性問題
+__dotfiles_ble_history_bindings() {
+  ble-bind -f 'up' 'history-substring-search-backward'
+  ble-bind -f 'down' 'history-substring-search-forward'
+}
+
 __dotfiles_ble_fzf_bindings() {
   ble-bind -x 'M-x' 'fzf-file-widget'
   ble-bind -c 'M-c' 'ble/util/eval-stdout "__fzf_cd__"'
@@ -104,6 +109,7 @@ __dotfiles_ble_fzf_bindings() {
 }
 
 if [[ ${BLE_VERSION-} ]]; then
+  __dotfiles_ble_history_bindings
   ble-import -d integration/fzf-completion
   ble-import -d integration/fzf-key-bindings -C __dotfiles_ble_fzf_bindings
 elif [[ -r ~/.fzf/shell/key-bindings.bash && -r ~/.fzf/shell/completion.bash ]]; then
