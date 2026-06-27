@@ -71,7 +71,7 @@ __dotfiles_fzf_history_widget() {
       function flush() {
         if (entry != "") {
           gsub(/\t/, "  ", entry)
-          print num "\t" entry
+          entries[++count] = num "\t" entry
         }
       }
       /^[[:space:]]*[0-9]+[[:space:]]+/ {
@@ -85,8 +85,11 @@ __dotfiles_fzf_history_widget() {
         gsub(/\t/, "  ")
         entry = entry "\\n" $0
       }
-      END { flush() }
-    ' | fzf --tac --no-sort --query "${READLINE_LINE:-}" --delimiter=$'\t' --with-nth=2.. --bind 'ctrl-r:toggle-sort'
+      END {
+        flush()
+        for (i = count; i >= 1; i--) print entries[i]
+      }
+    ' | fzf --scheme=history --query "${READLINE_LINE:-}" --delimiter=$'\t' --with-nth=2.. --bind 'ctrl-r:toggle-sort'
   )" || return
 
   [[ -n "$selected" ]] || return 0

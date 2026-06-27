@@ -53,7 +53,7 @@ dotfiles/
 | `Opt-←` / `Opt-→` | 有 | shell 預設 | macOS 以單字為單位左右移動游標 |
 | `Tab-h/j/k/l` | 無 | 有 | Ubuntu 透過 keyd 將 `Tab` 作為導航層，`h/j/k/l` 對應左/下/上/右 |
 
-fzf 搜尋會使用 `fd` 作為後端；預覽視窗會用 `eza` 顯示目錄內容，檔案則顯示前 50 行。
+fzf 搜尋會使用 `fd` 作為後端；預覽視窗會用 `eza` 顯示目錄內容，檔案則顯示前 50 行。Ubuntu 的 `Ctrl-R` history 搜尋預設使用 fzf history scoring，進入後可再按 `Ctrl-R` 切換排序模式。
 Ubuntu 的 ble.sh 會保留語法高亮、一般自動補全、歷史自動補全、Tab 候選選單與選單內過濾；`Ctrl-R` 提供較適合 multiline history 的 fzf 搜尋視圖。
 
 多行 history 的處理策略是保留為單筆紀錄，不拆成多個單行命令。`Ctrl-R` 搜尋時會把多行顯示壓成單行，選中後仍插入原始多行內容；`↑` / `↓` 則依目前輸入做 substring 搜尋。若要檢查某筆多行紀錄，可用 `fc -ln <編號> <編號> | sed -n l`；若要刪除不想保留的紀錄，可用 `history -d <編號>` 後接 `history -w`。
