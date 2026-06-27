@@ -7,12 +7,12 @@
 [[ $- != *i* ]] && return
 
 if [[ ${BLE_VERSION-} ]]; then
-  # 保留一般與歷史自動補全；Ctrl-R 提供較適合 multiline history 的搜尋視圖。
+  # 保留自動補全、Tab 候選選單與選單內過濾；Ctrl-R 適合 multiline history 搜尋。
   bleopt complete_auto_complete=1
   bleopt complete_auto_delay=300
   bleopt complete_auto_history=1
-  bleopt complete_menu_complete=
-  bleopt complete_menu_filter=
+  bleopt complete_menu_complete=1
+  bleopt complete_menu_filter=1
 fi
 
 ########################################
