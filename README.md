@@ -56,6 +56,20 @@ fzf 搜尋會使用 `fd` 作為後端；預覽視窗會用 `eza` 顯示目錄內
 
 Ubuntu 會從源碼安裝 [keyd](https://github.com/rvaiya/keyd) 的最新穩定 tag，套用 `ubuntu/keyd/default.conf` 到 `/etc/keyd/default.conf`，通過 `keyd check` 後啟用 systemd 服務。單按 `Tab` 仍是正常 Tab；按住 `Tab` 再按 `h/j/k/l` 則輸出方向鍵。
 
+## Ubuntu 開發環境
+
+Ubuntu 安裝腳本會額外安裝一組常用開發工具：
+
+- CLI / 系統工具：`vim`、`nano`、`htop`、`net-tools`、`openssh-server`、`zip`、`unzip`
+- 編譯與除錯：`build-essential`、`cmake`、`gdb`、`pkg-config`
+- Python / OpenCV：`python3`、`pip`、`venv`、`python3-dev`、`python3-opencv`、`libopencv-dev`
+- Python AI 基礎套件：`numpy`、`scipy`、`pandas`、`matplotlib`、`scikit-learn`
+- Python AI venv：建立在 `~/.venvs/ai`，內含 `jupyterlab`、`ipykernel`、`seaborn`、`tqdm`、`rich`、`requests`
+- VS Code：透過 Microsoft apt repository 安裝 `code`
+- ROS 2 Humble：只在 Ubuntu 22.04 `jammy` 透過 `ros2-apt-source` 安裝 `ros-humble-desktop`、`ros-dev-tools` 與 colcon 工具；Ubuntu 24.04 會略過 Humble
+
+安裝 ROS 2 Humble 後，Ubuntu `.bashrc` 會在 `/opt/ros/humble/setup.bash` 存在時自動 source。
+
 ## 平台差異
 
 | 功能 | macOS | Ubuntu |
@@ -68,6 +82,8 @@ Ubuntu 會從源碼安裝 [keyd](https://github.com/rvaiya/keyd) 的最新穩定
 | Conda 懶載入 | 有 | 無 |
 | fastfetch | 有 | 無 |
 | 系統鍵盤映射 | 無 | keyd |
+| ROS 2 | 無 | Humble（Ubuntu 22.04） |
+| VS Code | 無 | 有 |
 
 ## 穩定性與啟動優化
 

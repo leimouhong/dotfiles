@@ -4,6 +4,13 @@ set -euo pipefail
 
 SCRIPT_DIR="$(cd -- "$(dirname -- "${BASH_SOURCE[0]}")" && pwd)"
 
+if [[ -r /etc/os-release ]]; then
+  . /etc/os-release
+  UBUNTU_CODENAME="${UBUNTU_CODENAME:-${VERSION_CODENAME:-}}"
+else
+  UBUNTU_CODENAME=""
+fi
+
 # 偵測架構
 DPKG_ARCH=$(dpkg --print-architecture)
 case "$DPKG_ARCH" in
@@ -30,8 +37,101 @@ _latest()   { _latest_v "$1" | sed 's/^v//'; }
 echo "==> 更新套件"
 sudo apt update -qq
 
-echo "==> 安裝基礎套件"
-sudo apt install -y git curl unzip wget gpg ca-certificates build-essential gawk
+echo "==> 安裝常用開發工具與 Python / OpenCV 基礎套件"
+COMMON_DEV_PACKAGES=(
+  build-essential
+  git
+  curl
+  wget
+  vim
+  nano
+  htop
+  net-tools
+  openssh-server
+  cmake
+  gdb
+  unzip
+  zip
+  software-properties-common
+  ca-certificates
+  gawk
+  gpg
+  gnupg
+  lsb-release
+  pkg-config
+)
+PYTHON_AI_PACKAGES=(
+  python3
+  python-is-python3
+  python3-pip
+  python3-venv
+  python3-dev
+  python3-numpy
+  python3-scipy
+  python3-pandas
+  python3-matplotlib
+  python3-sklearn
+  python3-opencv
+  libopencv-dev
+)
+sudo apt install -y "${COMMON_DEV_PACKAGES[@]}" "${PYTHON_AI_PACKAGES[@]}"
+unset COMMON_DEV_PACKAGES PYTHON_AI_PACKAGES
+
+echo "==> 安裝 VS Code"
+wget -qO- https://packages.microsoft.com/keys/microsoft.asc \
+  | gpg --dearmor \
+  | sudo tee /usr/share/keyrings/packages.microsoft.gpg >/dev/null
+echo "deb [arch=$DPKG_ARCH signed-by=/usr/share/keyrings/packages.microsoft.gpg] https://packages.microsoft.com/repos/code stable main" \
+  | sudo tee /etc/apt/sources.list.d/vscode.list >/dev/null
+sudo apt update -qq
+sudo apt install -y code
+
+echo "==> 建立 Python AI 基礎環境"
+AI_VENV="$HOME/.venvs/ai"
+mkdir -p "$(dirname "$AI_VENV")"
+python3 -m venv --system-site-packages "$AI_VENV"
+"$AI_VENV/bin/python" -m pip install --upgrade pip setuptools wheel
+"$AI_VENV/bin/python" -m pip install --upgrade \
+  jupyterlab \
+  ipykernel \
+  seaborn \
+  tqdm \
+  rich \
+  requests
+unset AI_VENV
+
+if [[ "$UBUNTU_CODENAME" == "jammy" ]]; then
+  echo "==> 安裝 ROS 2 Humble"
+  sudo apt install -y locales
+  sudo locale-gen en_US en_US.UTF-8
+  sudo update-locale LC_ALL=en_US.UTF-8 LANG=en_US.UTF-8
+  sudo add-apt-repository -y universe
+  ROS_APT_SOURCE_VERSION=$(
+    curl -fsSL https://api.github.com/repos/ros-infrastructure/ros-apt-source/releases/latest \
+      | grep -F '"tag_name"' \
+      | awk -F'"' '{print $4}'
+  )
+  curl -fsSL -o /tmp/ros2-apt-source.deb \
+    "https://github.com/ros-infrastructure/ros-apt-source/releases/download/${ROS_APT_SOURCE_VERSION}/ros2-apt-source_${ROS_APT_SOURCE_VERSION}.${UBUNTU_CODENAME}_all.deb"
+  sudo dpkg -i /tmp/ros2-apt-source.deb
+  rm -f /tmp/ros2-apt-source.deb
+  unset ROS_APT_SOURCE_VERSION
+  sudo apt update -qq
+  sudo apt install -y systemd udev
+  sudo apt install -y \
+    ros-humble-desktop \
+    ros-dev-tools \
+    python3-argcomplete \
+    python3-colcon-common-extensions
+  if command -v rosdep >/dev/null 2>&1; then
+    if [[ ! -f /etc/ros/rosdep/sources.list.d/20-default.list ]]; then
+      sudo rosdep init
+    fi
+    rosdep update || echo "   rosdep update 失敗，可稍後手動執行 rosdep update"
+  fi
+else
+  echo "==> 略過 ROS 2 Humble：Humble apt 套件目標是 Ubuntu 22.04 jammy，目前偵測為 ${UBUNTU_CODENAME:-unknown}"
+fi
 
 echo "==> 安裝 ripgrep"
 RG_VER=$(_latest BurntSushi/ripgrep)
@@ -60,7 +160,8 @@ unset FZF_BIN
 echo "==> 安裝 eza"
 sudo mkdir -p /etc/apt/keyrings
 wget -qO- https://raw.githubusercontent.com/eza-community/eza/main/deb.asc \
-  | sudo gpg --dearmor -o /etc/apt/keyrings/gierens.gpg
+  | gpg --dearmor \
+  | sudo tee /etc/apt/keyrings/gierens.gpg >/dev/null
 echo "deb [signed-by=/etc/apt/keyrings/gierens.gpg] http://deb.gierens.de stable main" \
   | sudo tee /etc/apt/sources.list.d/gierens.list >/dev/null
 sudo apt update -qq && sudo apt install -y eza

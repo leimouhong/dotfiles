@@ -112,7 +112,14 @@ export EDITOR="nvim"
 export LESS='-R'
 
 ########################################
-# 5. zoxide（快取 init 輸出）
+# 5. ROS 2 Humble
+########################################
+if [[ -f /opt/ros/humble/setup.bash ]]; then
+  source /opt/ros/humble/setup.bash
+fi
+
+########################################
+# 6. zoxide（快取 init 輸出）
 ########################################
 if command -v zoxide >/dev/null 2>&1; then
   _zoxide_cache="$HOME/.cache/zoxide-init.bash"
@@ -134,7 +141,7 @@ if command -v zoxide >/dev/null 2>&1; then
 fi
 
 ########################################
-# 6. nvm（Node 版本管理）
+# 7. nvm（Node 版本管理）
 ########################################
 export NVM_DIR="$HOME/.nvm"
 
@@ -162,7 +169,7 @@ export PATH
 unset -f __dotfiles_path_prepend __dotfiles_path_dedupe
 
 ########################################
-# 7. ble.sh attach（必須在最底端）
+# 8. ble.sh attach（必須在最底端）
 ########################################
 if [[ ${BLE_VERSION-} ]]; then
   ble-attach
