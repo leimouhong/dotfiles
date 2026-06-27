@@ -7,7 +7,7 @@
 [[ $- != *i* ]] && return
 
 if [[ ${BLE_VERSION-} ]]; then
-  # 保留自動補全、Tab 候選選單與選單內過濾；Ctrl-R 適合 multiline history 搜尋。
+  # 保留自動補全、Tab 候選選單與選單內過濾；history 搜尋直接逐行讀取 ~/.bash_history。
   bleopt complete_auto_complete=1
   bleopt complete_auto_delay=300
   bleopt complete_auto_history=1
@@ -65,44 +65,124 @@ export FZF_ALT_C_OPTS='--preview "eza -1 --color=always --group-directories-firs
 __dotfiles_fzf_history_widget() {
   command -v fzf >/dev/null 2>&1 || return 1
 
-  local selected num cmd
+  local histfile="${HISTFILE:-$HOME/.bash_history}"
+  [[ -r "$histfile" ]] || return 1
+  history -a 2>/dev/null || :
+
+  local selected cmd
   selected="$(
-    history | awk '
-      function flush() {
-        if (entry != "") {
-          gsub(/\t/, "  ", entry)
-          entries[++count] = num "\t" entry
-        }
-      }
-      /^[[:space:]]*[0-9]+[[:space:]]+/ {
-        flush()
-        num = $1
-        sub(/^[[:space:]]*[0-9]+[[:space:]]+/, "")
-        entry = $0
-        next
-      }
-      {
-        gsub(/\t/, "  ")
-        entry = entry "\\n" $0
-      }
+    awk '
+      $0 != "" && $0 !~ /^#[0-9]+$/ { entries[++count] = NR "\t" $0 }
       END {
-        flush()
         for (i = count; i >= 1; i--) print entries[i]
       }
-    ' | fzf --scheme=history --query "${READLINE_LINE:-}" --delimiter=$'\t' --with-nth=2.. --bind 'ctrl-r:toggle-sort'
+    ' "$histfile" | fzf --scheme=history --query "${READLINE_LINE:-}" --delimiter=$'\t' --with-nth=2.. --bind 'ctrl-r:toggle-sort'
   )" || return
 
   [[ -n "$selected" ]] || return 0
-  num="${selected%%$'\t'*}"
-  cmd="$(fc -ln "$num" "$num" 2>/dev/null)" || return
+  cmd="${selected#*$'\t'}"
+  __dotfiles_history_nav_reset
   READLINE_LINE="$cmd"
   READLINE_POINT=${#READLINE_LINE}
 }
 
+__dotfiles_history_nav_reset() {
+  __dotfiles_history_nav_active=
+  __dotfiles_history_nav_query=
+  __dotfiles_history_nav_index=
+  __dotfiles_history_nav_current=
+}
+
+__dotfiles_history_line_visible() {
+  [[ -n "$1" && ! "$1" =~ ^#[0-9]+$ ]]
+}
+
+__dotfiles_history_line_match() {
+  local line="$1" query="$2"
+  __dotfiles_history_line_visible "$line" || return 1
+  [[ -z "$query" || "$line" == *"$query"* ]]
+}
+
+__dotfiles_history_line_apply() {
+  local index="$1" line="$2" query="$3"
+  __dotfiles_history_nav_active=1
+  __dotfiles_history_nav_query="$query"
+  __dotfiles_history_nav_index="$index"
+  __dotfiles_history_nav_current="$line"
+  READLINE_LINE="$line"
+  READLINE_POINT=${#READLINE_LINE}
+}
+
+__dotfiles_history_line_search() {
+  local direction="$1"
+  local histfile="${HISTFILE:-$HOME/.bash_history}"
+  [[ -r "$histfile" ]] || return 1
+  history -a 2>/dev/null || :
+
+  local -a lines
+  local raw_line
+  while IFS= read -r raw_line || [[ -n "$raw_line" ]]; do
+    lines+=("$raw_line")
+  done < "$histfile"
+  ((${#lines[@]})) || return 1
+
+  local query start i line
+  if [[ ${__dotfiles_history_nav_active-} && "${READLINE_LINE-}" == "$__dotfiles_history_nav_current" ]]; then
+    query="$__dotfiles_history_nav_query"
+    if [[ "$direction" == prev ]]; then
+      start=$((__dotfiles_history_nav_index - 1))
+    else
+      start=$((__dotfiles_history_nav_index + 1))
+    fi
+  else
+    query="${READLINE_LINE-}"
+    if [[ "$direction" == prev ]]; then
+      start=$((${#lines[@]} - 1))
+    else
+      return 1
+    fi
+  fi
+
+  if [[ "$direction" == prev ]]; then
+    for ((i = start; i >= 0; i--)); do
+      line="${lines[i]}"
+      if __dotfiles_history_line_match "$line" "$query"; then
+        __dotfiles_history_line_apply "$i" "$line" "$query"
+        return 0
+      fi
+    done
+  else
+    for ((i = start; i < ${#lines[@]}; i++)); do
+      line="${lines[i]}"
+      if __dotfiles_history_line_match "$line" "$query"; then
+        __dotfiles_history_line_apply "$i" "$line" "$query"
+        return 0
+      fi
+    done
+
+    if [[ ${__dotfiles_history_nav_active-} ]]; then
+      READLINE_LINE="$query"
+      READLINE_POINT=${#READLINE_LINE}
+      __dotfiles_history_nav_reset
+      return 0
+    fi
+  fi
+
+  return 1
+}
+
+__dotfiles_history_line_prev() {
+  __dotfiles_history_line_search prev
+}
+
+__dotfiles_history_line_next() {
+  __dotfiles_history_line_search next
+}
+
 # ble.sh 與 fzf 需使用 ble 官方整合，避免 Alt-C 出現 [ble: EOF] 等相容性問題
 __dotfiles_ble_history_bindings() {
-  ble-bind -f 'up' 'history-substring-search-backward'
-  ble-bind -f 'down' 'history-substring-search-forward'
+  ble-bind -x 'up' '__dotfiles_history_line_prev'
+  ble-bind -x 'down' '__dotfiles_history_line_next'
 }
 
 __dotfiles_ble_fzf_bindings() {
@@ -132,9 +212,19 @@ elif [[ -r ~/.fzf/shell/key-bindings.bash && -r ~/.fzf/shell/completion.bash ]];
   bind -m emacs -x '"\ec": __fzf_cd__' 2>/dev/null
   bind -m vi-insert -x '"\ec": __fzf_cd__' 2>/dev/null
 
-  # Ctrl-R 歷史搜尋：顯示時壓成單行，插入時保留原始 multiline 命令
+  # Ctrl-R 歷史搜尋：直接逐行讀取 ~/.bash_history
   bind -m emacs -x '"\C-r": __dotfiles_fzf_history_widget' 2>/dev/null
   bind -m vi-insert -x '"\C-r": __dotfiles_fzf_history_widget' 2>/dev/null
+
+  # 方向鍵 history 搜尋：直接逐行讀取 ~/.bash_history
+  bind -m emacs -x '"\e[A": __dotfiles_history_line_prev' 2>/dev/null
+  bind -m emacs -x '"\e[B": __dotfiles_history_line_next' 2>/dev/null
+  bind -m emacs -x '"\eOA": __dotfiles_history_line_prev' 2>/dev/null
+  bind -m emacs -x '"\eOB": __dotfiles_history_line_next' 2>/dev/null
+  bind -m vi-insert -x '"\e[A": __dotfiles_history_line_prev' 2>/dev/null
+  bind -m vi-insert -x '"\e[B": __dotfiles_history_line_next' 2>/dev/null
+  bind -m vi-insert -x '"\eOA": __dotfiles_history_line_prev' 2>/dev/null
+  bind -m vi-insert -x '"\eOB": __dotfiles_history_line_next' 2>/dev/null
 fi
 
 ########################################
