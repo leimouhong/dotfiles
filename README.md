@@ -54,7 +54,7 @@ dotfiles/
 | `Tab-h/j/k/l` | 無 | 有 | Ubuntu 透過 keyd 將 `Tab` 作為導航層，`h/j/k/l` 對應左/下/上/右 |
 
 fzf 搜尋會使用 `fd` 作為後端；預覽視窗會用 `eza` 顯示目錄內容，檔案則顯示前 50 行。
-Ubuntu 的 ble.sh 會保留語法高亮，但關閉自動補全、歷史自動補全、Tab menu completion 與 menu filter，避免候選項一次刷滿整個終端。
+Ubuntu 的 ble.sh 會保留語法高亮、一般自動補全與歷史自動補全；`Ctrl-R` 提供較適合 multiline history 的 fzf 搜尋視圖。
 
 Ubuntu 會從源碼安裝 [keyd](https://github.com/rvaiya/keyd) 的最新穩定 tag，套用 `ubuntu/keyd/default.conf` 到 `/etc/keyd/default.conf`，通過 `keyd check` 後啟用 systemd 服務。單按 `Tab` 仍是正常 Tab；按住 `Tab` 再按 `h/j/k/l` 則輸出方向鍵。
 
@@ -66,7 +66,6 @@ Ubuntu 安裝腳本會額外安裝一組常用開發工具：
 - 編譯與除錯：`build-essential`、`cmake`、`gdb`、`pkg-config`
 - Python / OpenCV：`python3`、`pip`、`venv`、`python3-dev`、`python3-opencv`、`libopencv-dev`
 - Python AI 基礎套件：`numpy`、`scipy`、`pandas`、`matplotlib`、`scikit-learn`
-- Python AI venv：建立在 `~/.venvs/ai`，內含 `jupyterlab`、`ipykernel`、`seaborn`、`tqdm`、`rich`、`requests`
 - VS Code：透過 Microsoft apt repository 安裝 `code`
 - ROS 2 Humble：只在 Ubuntu 22.04 `jammy` 透過 `ros2-apt-source` 安裝 `ros-humble-desktop`、`ros-dev-tools` 與 colcon 工具；Ubuntu 24.04 會略過 Humble
 

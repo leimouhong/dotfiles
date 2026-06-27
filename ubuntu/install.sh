@@ -86,20 +86,6 @@ echo "deb [arch=$DPKG_ARCH signed-by=/usr/share/keyrings/packages.microsoft.gpg]
 sudo apt update -qq
 sudo apt install -y code
 
-echo "==> 建立 Python AI 基礎環境"
-AI_VENV="$HOME/.venvs/ai"
-mkdir -p "$(dirname "$AI_VENV")"
-python3 -m venv --system-site-packages "$AI_VENV"
-"$AI_VENV/bin/python" -m pip install --upgrade pip setuptools wheel
-"$AI_VENV/bin/python" -m pip install --upgrade \
-  jupyterlab \
-  ipykernel \
-  seaborn \
-  tqdm \
-  rich \
-  requests
-unset AI_VENV
-
 if [[ "$UBUNTU_CODENAME" == "jammy" ]]; then
   echo "==> 安裝 ROS 2 Humble"
   sudo apt install -y locales

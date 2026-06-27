@@ -7,9 +7,10 @@
 [[ $- != *i* ]] && return
 
 if [[ ${BLE_VERSION-} ]]; then
-  # 保留語法高亮，但避免自動/歷史補全一次展開大量候選。
-  bleopt complete_auto_complete=
-  bleopt complete_auto_history=
+  # 保留一般與歷史自動補全；Ctrl-R 提供較適合 multiline history 的搜尋視圖。
+  bleopt complete_auto_complete=1
+  bleopt complete_auto_delay=300
+  bleopt complete_auto_history=1
   bleopt complete_menu_complete=
   bleopt complete_menu_filter=
 fi
