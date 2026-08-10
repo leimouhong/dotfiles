@@ -16,6 +16,12 @@ Ubuntu 22.04 / 24.04（amd64 / arm64 自動偵測）：
 bash <(curl -fsSL https://raw.githubusercontent.com/leimouhong/dotfiles/main/ubuntu/install.sh)
 ```
 
+只裝 zellij（macOS / Linux 通用）：
+
+```bash
+bash <(curl -fsSL https://raw.githubusercontent.com/leimouhong/dotfiles/main/zellij/install.sh)
+```
+
 安裝腳本會備份既有 shell / Neovim 設定後再套用新檔案。
 
 ## 內容
@@ -30,7 +36,8 @@ dotfiles/
 │   ├── install.sh         # Ubuntu 一鍵安裝腳本
 │   └── keyd/default.conf  # Ubuntu keyd 鍵盤映射
 └── zellij/
-    └── config.kdl  # zellij 設定（兩平台共用）
+    ├── config.kdl  # zellij 設定（兩平台共用）
+    └── install.sh  # zellij 單獨安裝腳本（兩平台共用）
 ```
 
 ## 共用功能
@@ -39,7 +46,7 @@ dotfiles/
 - [fzf](https://github.com/junegunn/fzf)：模糊搜尋檔案、目錄與歷史。
 - [fd](https://github.com/sharkdp/fd)：作為 fzf 的快速搜尋後端。
 - [zoxide](https://github.com/ajeetdsouza/zoxide)：智慧目錄跳轉，提供 `j` alias。
-- [zellij](https://zellij.dev)：終端 multiplexer；macOS 走 Homebrew，Ubuntu 抓對應架構的 musl release 到 `/usr/local/bin`。設定套用 `zellij/config.kdl`（tokyo-night 主題、`simplified_ui`、[zellij-autolock](https://github.com/fresh2dev/zellij-autolock) plugin）。
+- [zellij](https://zellij.dev)：終端 multiplexer；macOS 走 Homebrew，Ubuntu 抓對應架構的 musl release 到 `/usr/local/bin`。設定套用 `zellij/config.kdl`（tokyo-night 主題、`simplified_ui`、[zellij-autolock](https://github.com/fresh2dev/zellij-autolock) plugin）。也可以只跑 `zellij/install.sh` 單獨安裝：它會自動判斷 macOS / Linux 與架構，macOS 沒有 Homebrew 時改抓 darwin release；zellij 已存在時只套用設定，要強制重裝加 `ZELLIJ_REINSTALL=1`。
 - [LazyVim](https://www.lazyvim.org)：Neovim starter 設定。
 - [nvm](https://github.com/nvm-sh/nvm)：懶載入 Node.js 版本管理。
 - 大量 history：保留 100,000 筆，減少重複與空白紀錄。
