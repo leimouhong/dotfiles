@@ -260,9 +260,8 @@ path=( ${^path}(N-/) )
 ########################################
 # 13. fastfetch
 ########################################
-# 只在頂層互動式 shell 顯示一次
-# 避免每開一個子 shell 都付出啟動成本
-if [[ ${SHLVL:-1} -eq 1 ]] && [[ -z ${TMUX-} ]] && command -v fastfetch >/dev/null 2>&1; then
+# 只在頂層互動式 shell 顯示一次，避免每開一個子 shell 都付出啟動成本
+if [[ ${SHLVL:-1} -eq 1 ]] && [[ -z ${TMUX-} ]] && [[ -z ${ZELLIJ-} ]] && command -v fastfetch >/dev/null 2>&1; then
   fastfetch
 fi
 

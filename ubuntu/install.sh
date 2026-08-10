@@ -19,12 +19,14 @@ case "$DPKG_ARCH" in
     LG_ARCH="x86_64"
     RG_ARCH="x86_64-unknown-linux-musl"
     FD_ARCH="x86_64-unknown-linux-musl"
+    ZJ_ARCH="x86_64-unknown-linux-musl"
     ;;
   arm64)
     NVIM_ARCH="arm64"
     LG_ARCH="arm64"
     RG_ARCH="aarch64-unknown-linux-gnu"
     FD_ARCH="aarch64-unknown-linux-musl"
+    ZJ_ARCH="aarch64-unknown-linux-musl"
     ;;
   *) echo "不支援的架構：$DPKG_ARCH"; exit 1 ;;
 esac
@@ -224,6 +226,15 @@ tar -xzf /tmp/lazygit.tar.gz -C /tmp lazygit
 sudo install /tmp/lazygit /usr/local/bin
 rm /tmp/lazygit.tar.gz /tmp/lazygit
 
+echo "==> 安裝 zellij"
+ZELLIJ_TAG=$(_latest_v zellij-org/zellij)
+curl -sLo /tmp/zellij.tar.gz \
+  "https://github.com/zellij-org/zellij/releases/download/${ZELLIJ_TAG}/zellij-${ZJ_ARCH}.tar.gz"
+tar -xzf /tmp/zellij.tar.gz -C /tmp zellij
+sudo install /tmp/zellij /usr/local/bin
+rm /tmp/zellij.tar.gz /tmp/zellij
+unset ZELLIJ_TAG
+
 echo "==> 安裝 nvm"
 curl -o- https://raw.githubusercontent.com/nvm-sh/nvm/v0.40.3/install.sh | bash
 export NVM_DIR="$HOME/.nvm"
@@ -237,6 +248,18 @@ if [[ -d "$HOME/.config/nvim" ]]; then
 fi
 git clone -q https://github.com/LazyVim/starter "$HOME/.config/nvim"
 rm -rf "$HOME/.config/nvim/.git"
+
+echo "==> 套用 zellij 設定"
+mkdir -p "$HOME/.config/zellij"
+if [[ -f "$HOME/.config/zellij/config.kdl" ]]; then
+  cp "$HOME/.config/zellij/config.kdl" "$HOME/.config/zellij/config.kdl.backup.$(date +%Y%m%d_%H%M%S)"
+  echo "   已備份原有 zellij 設定至 ~/.config/zellij/config.kdl.backup.*"
+fi
+if [[ -f "$SCRIPT_DIR/../zellij/config.kdl" ]]; then
+  cp "$SCRIPT_DIR/../zellij/config.kdl" "$HOME/.config/zellij/config.kdl"
+else
+  curl -fsSL https://raw.githubusercontent.com/leimouhong/dotfiles/main/zellij/config.kdl -o "$HOME/.config/zellij/config.kdl"
+fi
 
 echo "==> 套用 .bashrc"
 if [[ -f "$HOME/.bashrc" ]]; then

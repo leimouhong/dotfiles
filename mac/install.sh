@@ -35,7 +35,8 @@ brew install \
   fastfetch \
   ripgrep \
   neovim \
-  lazygit
+  lazygit \
+  zellij
 
 ########################################
 # NVM
@@ -60,6 +61,21 @@ if [[ -d "$HOME/.config/nvim" ]]; then
 fi
 git clone -q https://github.com/LazyVim/starter "$HOME/.config/nvim"
 rm -rf "$HOME/.config/nvim/.git"
+
+########################################
+# 套用 zellij 設定
+########################################
+echo "==> 套用 zellij 設定"
+mkdir -p "$HOME/.config/zellij"
+if [[ -f "$HOME/.config/zellij/config.kdl" ]]; then
+  cp "$HOME/.config/zellij/config.kdl" "$HOME/.config/zellij/config.kdl.backup.$(date +%Y%m%d_%H%M%S)"
+  echo "   已備份原有 zellij 設定至 ~/.config/zellij/config.kdl.backup.*"
+fi
+if [[ -f "$SCRIPT_DIR/../zellij/config.kdl" ]]; then
+  cp "$SCRIPT_DIR/../zellij/config.kdl" "$HOME/.config/zellij/config.kdl"
+else
+  curl -fsSL https://raw.githubusercontent.com/leimouhong/dotfiles/main/zellij/config.kdl -o "$HOME/.config/zellij/config.kdl"
+fi
 
 ########################################
 # 套用 .zshrc

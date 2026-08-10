@@ -25,10 +25,12 @@ dotfiles/
 ├── mac/
 │   ├── .zshrc      # macOS zsh 設定
 │   └── install.sh  # macOS 一鍵安裝腳本
-└── ubuntu/
-    ├── .bashrc            # Ubuntu bash 設定
-    ├── install.sh         # Ubuntu 一鍵安裝腳本
-    └── keyd/default.conf  # Ubuntu keyd 鍵盤映射
+├── ubuntu/
+│   ├── .bashrc            # Ubuntu bash 設定
+│   ├── install.sh         # Ubuntu 一鍵安裝腳本
+│   └── keyd/default.conf  # Ubuntu keyd 鍵盤映射
+└── zellij/
+    └── config.kdl  # zellij 設定（兩平台共用）
 ```
 
 ## 共用功能
@@ -37,6 +39,7 @@ dotfiles/
 - [fzf](https://github.com/junegunn/fzf)：模糊搜尋檔案、目錄與歷史。
 - [fd](https://github.com/sharkdp/fd)：作為 fzf 的快速搜尋後端。
 - [zoxide](https://github.com/ajeetdsouza/zoxide)：智慧目錄跳轉，提供 `j` alias。
+- [zellij](https://zellij.dev)：終端 multiplexer；macOS 走 Homebrew，Ubuntu 抓對應架構的 musl release 到 `/usr/local/bin`。設定套用 `zellij/config.kdl`（tokyo-night 主題、`simplified_ui`、[zellij-autolock](https://github.com/fresh2dev/zellij-autolock) plugin）。
 - [LazyVim](https://www.lazyvim.org)：Neovim starter 設定。
 - [nvm](https://github.com/nvm-sh/nvm)：懶載入 Node.js 版本管理。
 - 大量 history：保留 100,000 筆，減少重複與空白紀錄。
@@ -57,6 +60,8 @@ fzf 搜尋會使用 `fd` 作為後端；預覽視窗會用 `eza` 顯示目錄內
 Ubuntu 的 ble.sh 會保留語法高亮、一般自動補全、歷史自動補全、Tab 候選選單與選單內過濾；`Ctrl-R`、`↑`、`↓` 都直接逐行讀取 `${HISTFILE:-~/.bash_history}`，顯示結果會和檔案實體行一致。
 
 多行貼上若在 `~/.bash_history` 中變成多個實體行，Ubuntu 的 history 搜尋也會把它們當成多筆候選。若要檢查或清理紀錄，可用 `nl -ba ~/.bash_history` 查看行號，直接編輯 `~/.bash_history` 後重新開啟 shell。
+
+zellij 的 keybinds 使用 `clear-defaults=true`，因此 `zellij/config.kdl` 的整個 keybinds 區塊都是必要的——刪掉任一段就等於少掉該快捷鍵，zellij 不會補回自己的預設值。zellij 在 normal 模式會吃掉 `Ctrl-p` / `Ctrl-n` / `Ctrl-s` / `Ctrl-o`（模式切換鍵）；autolock plugin 會在 `nvim`、`vim`、`fzf`、`zoxide`、`atuin`、`lazygit` 於前景執行時自動切到 Locked 模式，讓這些程式收到完整按鍵。日常 history 導覽用的是 `↑` / `↓`，不受影響。
 
 Ubuntu 會從源碼安裝 [keyd](https://github.com/rvaiya/keyd) 的最新穩定 tag，套用 `ubuntu/keyd/default.conf` 到 `/etc/keyd/default.conf`，通過 `keyd check` 後啟用 systemd 服務。單按 `Tab` 仍是正常 Tab；按住 `Tab` 再按 `h/j/k/l` 則輸出方向鍵。
 
@@ -93,6 +98,7 @@ Ubuntu 安裝腳本會額外安裝一組常用開發工具：
 - macOS 會優先保留 `/opt/homebrew/bin`，避免 Apple Silicon 上被 `/usr/local/bin` 的舊 binary 蓋過。
 - zoxide / starship init 會快取到 `~/.cache`，並使用 temp file 後再原子替換，避免留下半成品 cache。
 - `TERM=dumb` 時 macOS 會跳過 starship，避免非標準終端輸出錯誤。
+- macOS 的 fastfetch 只在頂層 shell 執行，且在 tmux / zellij 內一律跳過。
 - Ubuntu 的 PATH 會去重，反覆 `source ~/.bashrc` 不會累加重複路徑。
 - 缺少 ble.sh、Kaku、bun、pipx 等可選工具時，rc 會安靜略過。
 - Ubuntu keyd 設定會先備份既有 `/etc/keyd/default.conf`，再套用此 repo 的版本。
@@ -109,6 +115,10 @@ source ~/.zshrc
 # Ubuntu
 cp ubuntu/.bashrc ~/.bashrc
 source ~/.bashrc
+
+# zellij（兩平台共用）
+mkdir -p ~/.config/zellij
+cp zellij/config.kdl ~/.config/zellij/config.kdl
 ```
 
 建議先自行備份既有設定；完整安裝腳本會自動備份。
