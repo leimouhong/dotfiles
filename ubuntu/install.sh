@@ -123,7 +123,7 @@ fi
 
 echo "==> 安裝 ripgrep"
 RG_VER=$(_latest BurntSushi/ripgrep)
-curl -sLo /tmp/rg.tar.gz \
+curl -fsSL -o /tmp/rg.tar.gz \
   "https://github.com/BurntSushi/ripgrep/releases/download/${RG_VER}/ripgrep-${RG_VER}-${RG_ARCH}.tar.gz"
 tar -xzf /tmp/rg.tar.gz -C /tmp "ripgrep-${RG_VER}-${RG_ARCH}/rg"
 sudo install "/tmp/ripgrep-${RG_VER}-${RG_ARCH}/rg" /usr/local/bin/rg
@@ -131,7 +131,7 @@ rm -rf /tmp/rg.tar.gz "/tmp/ripgrep-${RG_VER}-${RG_ARCH}"
 
 echo "==> 安裝 fd"
 FD_VER=$(_latest sharkdp/fd)
-curl -sLo /tmp/fd.tar.gz \
+curl -fsSL -o /tmp/fd.tar.gz \
   "https://github.com/sharkdp/fd/releases/download/v${FD_VER}/fd-v${FD_VER}-${FD_ARCH}.tar.gz"
 tar -xzf /tmp/fd.tar.gz -C /tmp "fd-v${FD_VER}-${FD_ARCH}/fd"
 sudo install "/tmp/fd-v${FD_VER}-${FD_ARCH}/fd" /usr/local/bin/fd
@@ -213,14 +213,14 @@ sudo systemctl enable --now keyd
 sudo keyd reload
 
 echo "==> 安裝 Neovim（AppImage，$DPKG_ARCH）"
-curl -sLo /tmp/nvim.appimage \
+curl -fsSL -o /tmp/nvim.appimage \
   "https://github.com/neovim/neovim/releases/latest/download/nvim-linux-${NVIM_ARCH}.appimage"
 chmod +x /tmp/nvim.appimage
 sudo mv /tmp/nvim.appimage /usr/local/bin/nvim
 
 echo "==> 安裝 lazygit"
 LAZYGIT_VERSION=$(_latest jesseduffield/lazygit)
-curl -sLo /tmp/lazygit.tar.gz \
+curl -fsSL -o /tmp/lazygit.tar.gz \
   "https://github.com/jesseduffield/lazygit/releases/download/v${LAZYGIT_VERSION}/lazygit_${LAZYGIT_VERSION}_Linux_${LG_ARCH}.tar.gz"
 tar -xzf /tmp/lazygit.tar.gz -C /tmp lazygit
 sudo install /tmp/lazygit /usr/local/bin
@@ -228,7 +228,7 @@ rm /tmp/lazygit.tar.gz /tmp/lazygit
 
 echo "==> 安裝 zellij"
 ZELLIJ_TAG=$(_latest_v zellij-org/zellij)
-curl -sLo /tmp/zellij.tar.gz \
+curl -fsSL -o /tmp/zellij.tar.gz \
   "https://github.com/zellij-org/zellij/releases/download/${ZELLIJ_TAG}/zellij-${ZJ_ARCH}.tar.gz"
 tar -xzf /tmp/zellij.tar.gz -C /tmp zellij
 sudo install /tmp/zellij /usr/local/bin
