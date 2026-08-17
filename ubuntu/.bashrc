@@ -283,6 +283,9 @@ if command -v zoxide >/dev/null 2>&1; then
   if [[ -r "$_zoxide_cache" ]]; then
     source "$_zoxide_cache"
     alias j='z'
+    if declare -F __zoxide_zi >/dev/null 2>&1; then
+      ji() { __zoxide_zi; }
+    fi
   fi
   unset _zoxide_cache
 fi

@@ -113,7 +113,7 @@ if command -v zoxide >/dev/null 2>&1; then
     fi
   fi
   unset _zoxide_cache
-  export _ZO_FZF_OPTS="--layout=reverse --delimiter=\"\\t\" --with-nth=2.. --preview 'p={2}; p=\${p/#~/$HOME}; eza -1 --color=always --group-directories-first \"\$p\" | head -n 50'"
+  export _ZO_FZF_OPTS="--layout=reverse --delimiter=\"\\t\" --preview 'p={2}; p=\${p/#~/$HOME}; eza -1 --color=always --group-directories-first \"\$p\" | head -n 50'"
 fi
 
 ########################################
