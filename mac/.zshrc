@@ -40,12 +40,31 @@ zstyle ':zinit:*' list-command 'eza --color=always --group-directories-first'
 ########################################
 # 3. 歷史
 ########################################
-HISTFILE=~/.zsh_history
-HISTSIZE=100000
+HISTFILE="$HOME/.zsh_history"
+
+# 記憶體中的歷史應大於實際保存數量
+HISTSIZE=120000
 SAVEHIST=100000
-setopt HIST_IGNORE_DUPS HIST_REDUCE_BLANKS HIST_VERIFY INC_APPEND_HISTORY SHARE_HISTORY
-setopt HIST_IGNORE_SPACE HIST_EXPIRE_DUPS_FIRST
-setopt EXTENDED_GLOB AUTO_CD
+
+# 多個終端即時共享歷史
+setopt SHARE_HISTORY
+setopt EXTENDED_HISTORY
+
+# 歷史整理
+setopt HIST_IGNORE_DUPS
+setopt HIST_EXPIRE_DUPS_FIRST
+setopt HIST_FIND_NO_DUPS
+setopt HIST_SAVE_NO_DUPS
+setopt HIST_REDUCE_BLANKS
+
+# 以空格開頭的命令不保存
+setopt HIST_IGNORE_SPACE
+
+# ! 歷史展開後先顯示，不直接執行
+setopt HIST_VERIFY
+
+# 多終端同時寫入時使用系統檔案鎖
+setopt HIST_FCNTL_LOCK
 
 ########################################
 # 4. fzf

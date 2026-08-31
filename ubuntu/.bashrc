@@ -18,21 +18,40 @@ fi
 ########################################
 # 1. History
 ########################################
-HISTFILE=~/.bash_history
+HISTFILE="$HOME/.bash_history"
 HISTSIZE=100000
 HISTFILESIZE=100000
-HISTCONTROL=ignoredups:erasedups
+HISTCONTROL=ignoredups
 HISTIGNORE='ls:cd:pwd:exit:history'
-shopt -s histappend
+shopt -s histappend cmdhist
 
-# 增量同步 history，避免每次顯示 prompt 都清空並重讀整份歷史
-__dotfiles_history_sync() {
-  history -a
-  history -n
-}
-# 守衛：避免重複 source ~/.bashrc 時累加 __dotfiles_history_sync
-[[ "${PROMPT_COMMAND:-}" != *__dotfiles_history_sync* ]] && \
-  PROMPT_COMMAND="__dotfiles_history_sync${PROMPT_COMMAND:+; $PROMPT_COMMAND}"
+if [[ ${BLE_VERSION-} ]]; then
+  # 使用 ble.sh 自帶的多終端 history 同步。
+  bleopt history_share=1
+else
+  # 沒有 ble.sh 時才使用 Bash 內建的增量同步。
+  __dotfiles_history_sync() {
+    builtin history -a
+    builtin history -n
+  }
+
+  # 同時兼容字串和陣列形式的 PROMPT_COMMAND，並避免重複註冊。
+  if [[ $(declare -p PROMPT_COMMAND 2>/dev/null) == "declare -a "* ]]; then
+    __dotfiles_history_sync_registered=
+    for __dotfiles_prompt_command in "${PROMPT_COMMAND[@]}"; do
+      if [[ "$__dotfiles_prompt_command" == __dotfiles_history_sync ]]; then
+        __dotfiles_history_sync_registered=1
+        break
+      fi
+    done
+    if [[ ! $__dotfiles_history_sync_registered ]]; then
+      PROMPT_COMMAND=(__dotfiles_history_sync "${PROMPT_COMMAND[@]}")
+    fi
+    unset __dotfiles_history_sync_registered __dotfiles_prompt_command
+  elif [[ ${PROMPT_COMMAND-} != *__dotfiles_history_sync* ]]; then
+    PROMPT_COMMAND="__dotfiles_history_sync${PROMPT_COMMAND:+; $PROMPT_COMMAND}"
+  fi
+fi
 
 ########################################
 # 2. eza
