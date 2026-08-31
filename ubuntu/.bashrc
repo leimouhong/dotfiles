@@ -112,96 +112,10 @@ __dotfiles_history_nav_reset() {
   __dotfiles_history_nav_current=
 }
 
-__dotfiles_history_line_visible() {
-  [[ -n "$1" && ! "$1" =~ ^#[0-9]+$ ]]
-}
-
-__dotfiles_history_line_match() {
-  local line="$1" query="$2"
-  __dotfiles_history_line_visible "$line" || return 1
-  [[ -z "$query" || "$line" == *"$query"* ]]
-}
-
-__dotfiles_history_line_apply() {
-  local index="$1" line="$2" query="$3"
-  __dotfiles_history_nav_active=1
-  __dotfiles_history_nav_query="$query"
-  __dotfiles_history_nav_index="$index"
-  __dotfiles_history_nav_current="$line"
-  READLINE_LINE="$line"
-  READLINE_POINT=${#READLINE_LINE}
-}
-
-__dotfiles_history_line_search() {
-  local direction="$1"
-  local histfile="${HISTFILE:-$HOME/.bash_history}"
-  [[ -r "$histfile" ]] || return 1
-  history -a 2>/dev/null || :
-
-  local -a lines
-  local raw_line
-  while IFS= read -r raw_line || [[ -n "$raw_line" ]]; do
-    lines+=("$raw_line")
-  done < "$histfile"
-  ((${#lines[@]})) || return 1
-
-  local query start i line
-  if [[ ${__dotfiles_history_nav_active-} && "${READLINE_LINE-}" == "$__dotfiles_history_nav_current" ]]; then
-    query="$__dotfiles_history_nav_query"
-    if [[ "$direction" == prev ]]; then
-      start=$((__dotfiles_history_nav_index - 1))
-    else
-      start=$((__dotfiles_history_nav_index + 1))
-    fi
-  else
-    query="${READLINE_LINE-}"
-    if [[ "$direction" == prev ]]; then
-      start=$((${#lines[@]} - 1))
-    else
-      return 1
-    fi
-  fi
-
-  if [[ "$direction" == prev ]]; then
-    for ((i = start; i >= 0; i--)); do
-      line="${lines[i]}"
-      if __dotfiles_history_line_match "$line" "$query"; then
-        __dotfiles_history_line_apply "$i" "$line" "$query"
-        return 0
-      fi
-    done
-  else
-    for ((i = start; i < ${#lines[@]}; i++)); do
-      line="${lines[i]}"
-      if __dotfiles_history_line_match "$line" "$query"; then
-        __dotfiles_history_line_apply "$i" "$line" "$query"
-        return 0
-      fi
-    done
-
-    if [[ ${__dotfiles_history_nav_active-} ]]; then
-      READLINE_LINE="$query"
-      READLINE_POINT=${#READLINE_LINE}
-      __dotfiles_history_nav_reset
-      return 0
-    fi
-  fi
-
-  return 1
-}
-
-__dotfiles_history_line_prev() {
-  __dotfiles_history_line_search prev
-}
-
-__dotfiles_history_line_next() {
-  __dotfiles_history_line_search next
-}
-
-# ble.sh 與 fzf 需使用 ble 官方整合，避免 Alt-C 出現 [ble: EOF] 等相容性問題
+# ble.sh 直接搜尋記憶體中的 history，避免每按一次方向鍵都重讀整份 ~/.bash_history。
 __dotfiles_ble_history_bindings() {
-  ble-bind -x 'up' '__dotfiles_history_line_prev'
-  ble-bind -x 'down' '__dotfiles_history_line_next'
+  ble-bind -f up history-substring-search-backward
+  ble-bind -f down history-substring-search-forward
 }
 
 __dotfiles_ble_fzf_bindings() {
@@ -235,15 +149,15 @@ elif [[ -r ~/.fzf/shell/key-bindings.bash && -r ~/.fzf/shell/completion.bash ]];
   bind -m emacs -x '"\C-r": __dotfiles_fzf_history_widget' 2>/dev/null
   bind -m vi-insert -x '"\C-r": __dotfiles_fzf_history_widget' 2>/dev/null
 
-  # 方向鍵 history 搜尋：直接逐行讀取 ~/.bash_history
-  bind -m emacs -x '"\e[A": __dotfiles_history_line_prev' 2>/dev/null
-  bind -m emacs -x '"\e[B": __dotfiles_history_line_next' 2>/dev/null
-  bind -m emacs -x '"\eOA": __dotfiles_history_line_prev' 2>/dev/null
-  bind -m emacs -x '"\eOB": __dotfiles_history_line_next' 2>/dev/null
-  bind -m vi-insert -x '"\e[A": __dotfiles_history_line_prev' 2>/dev/null
-  bind -m vi-insert -x '"\e[B": __dotfiles_history_line_next' 2>/dev/null
-  bind -m vi-insert -x '"\eOA": __dotfiles_history_line_prev' 2>/dev/null
-  bind -m vi-insert -x '"\eOB": __dotfiles_history_line_next' 2>/dev/null
+  # 方向鍵 history 搜尋：使用 Readline 記憶體 history，不重讀整份檔案
+  bind -m emacs '"\e[A": history-search-backward' 2>/dev/null
+  bind -m emacs '"\e[B": history-search-forward' 2>/dev/null
+  bind -m emacs '"\eOA": history-search-backward' 2>/dev/null
+  bind -m emacs '"\eOB": history-search-forward' 2>/dev/null
+  bind -m vi-insert '"\e[A": history-search-backward' 2>/dev/null
+  bind -m vi-insert '"\e[B": history-search-forward' 2>/dev/null
+  bind -m vi-insert '"\eOA": history-search-backward' 2>/dev/null
+  bind -m vi-insert '"\eOB": history-search-forward' 2>/dev/null
 fi
 
 ########################################
