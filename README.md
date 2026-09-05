@@ -34,9 +34,33 @@ bash <(curl -fsSL https://raw.githubusercontent.com/leimouhong/dotfiles/main/zel
 
 以上線上命令使用 GitHub 的 `main` 分支。本機修改需先提交並推送，其他機器才會取得新版。
 
+## 清理安裝備份
+
+在專案根目錄執行，會自動找出並刪除 macOS 與 Ubuntu 安裝流程產生的備份：
+
+```bash
+bash cleanup-backups.sh --dry-run  # 預覽待刪除項目
+bash cleanup-backups.sh           # 刪除備份
+```
+
+其他 macOS / Ubuntu 電腦可直接透過 GitHub 執行，無需下載整個專案：
+
+```bash
+# 預覽待刪除項目
+bash <(curl -fsSL https://raw.githubusercontent.com/leimouhong/dotfiles/main/cleanup-backups.sh) --dry-run
+
+# 刪除備份
+bash <(curl -fsSL https://raw.githubusercontent.com/leimouhong/dotfiles/main/cleanup-backups.sh)
+```
+
+使用前需先將 `cleanup-backups.sh` 提交並推送到 GitHub 的 `main` 分支。
+
+清理範圍包括 `~/.zshrc.backup.*`、`~/.bashrc.backup.*`、`~/.config/zellij/config.kdl.backup.*`、`/etc/keyd/default.conf.backup.*`，以及 `${XDG_CONFIG_HOME:-$HOME/.config}/nvim.backup.*` 目錄。只匹配安裝腳本使用的時間戳格式；LazyVim 備份另須符合六位隨機字元後綴。keyd 備份需要權限時會使用 `sudo`，其餘以目前使用者身分刪除。
+
 ## 專案結構
 
 ```text
+cleanup-backups.sh
 mac/
 ├── .zshrc
 └── install.sh
