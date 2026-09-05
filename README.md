@@ -1,8 +1,8 @@
 # dotfiles
 
-個人 shell 設定檔，支援 macOS（zsh）與 Ubuntu（bash）。重點放在快速啟動、常用 CLI 工具整合，以及在缺少部分工具時仍能安全 fallback。
+macOS 與 Ubuntu 的個人 shell、終端及開發環境設定。LazyVim 設定從 Mac 匯入，部署到 Ubuntu。
 
-## 快速開始
+## 安裝
 
 macOS：
 
@@ -10,122 +10,98 @@ macOS：
 bash <(curl -fsSL https://raw.githubusercontent.com/leimouhong/dotfiles/main/mac/install.sh)
 ```
 
-Ubuntu 22.04 / 24.04（amd64 / arm64 自動偵測）：
+Ubuntu 22.04 / 24.04（amd64 / arm64）：
 
 ```bash
 bash <(curl -fsSL https://raw.githubusercontent.com/leimouhong/dotfiles/main/ubuntu/install.sh)
 ```
 
-只裝 zellij（macOS / Linux 通用）：
+| 平台 | 安裝內容 |
+| --- | --- |
+| 共用 | eza、fzf、fd、ripgrep、zoxide、zellij、Neovim、lazygit、nvm 與 Node.js LTS |
+| macOS | zsh 設定、zinit、starship、fastfetch |
+| Ubuntu | bash 設定、ble.sh、個人 LazyVim 設定、keyd、VS Code、SSH server、C/C++ 開發工具、Python / OpenCV 與常用科學運算套件 |
+
+Ubuntu 22.04 另安裝 ROS 2 Humble；24.04 會略過。腳本會備份既有設定，安裝後重新開啟終端即可。
+
+**Ubuntu 完整安裝會自動安裝 Neovim，並套用 `ubuntu/nvim/config/`，毋須再執行設定安裝腳本。** macOS 會安裝 Neovim 程式，個人設定則沿用現有環境或使用移轉輔助程式搬移。
+
+只裝 zellij（macOS / Linux）：
 
 ```bash
 bash <(curl -fsSL https://raw.githubusercontent.com/leimouhong/dotfiles/main/zellij/install.sh)
 ```
 
-安裝腳本會備份既有 shell / Neovim 設定後再套用新檔案。
+以上線上命令使用 GitHub 的 `main` 分支。本機修改需先提交並推送，其他機器才會取得新版。
 
-## 內容
+## 專案結構
 
 ```text
-dotfiles/
-├── mac/
-│   ├── .zshrc      # macOS zsh 設定
-│   └── install.sh  # macOS 一鍵安裝腳本
-├── ubuntu/
-│   ├── .bashrc            # Ubuntu bash 設定
-│   ├── install.sh         # Ubuntu 一鍵安裝腳本
-│   └── keyd/default.conf  # Ubuntu keyd 鍵盤映射
-└── zellij/
-    ├── config.kdl  # zellij 設定（兩平台共用）
-    └── install.sh  # zellij 單獨安裝腳本（兩平台共用）
+mac/
+├── .zshrc
+└── install.sh
+ubuntu/
+├── .bashrc
+├── install.sh
+├── keyd/default.conf
+└── nvim/
+    ├── install.sh
+    └── config/          # init.lua、lua/、lazy-lock.json、lazyvim.json 等
+zellij/
+├── config.kdl
+└── install.sh
 ```
 
-## 共用功能
+## LazyVim（Ubuntu）
 
-- [eza](https://github.com/eza-community/eza)：現代化 `ls` 替代品。
-- [fzf](https://github.com/junegunn/fzf)：模糊搜尋檔案、目錄與歷史。
-- [fd](https://github.com/sharkdp/fd)：作為 fzf 的快速搜尋後端。
-- [zoxide](https://github.com/ajeetdsouza/zoxide)：智慧目錄跳轉，提供 `j` alias。
-- [zellij](https://zellij.dev)：終端 multiplexer；macOS 走 Homebrew，Ubuntu 抓對應架構的 musl release 到 `/usr/local/bin`。設定套用 `zellij/config.kdl`（tokyo-night 主題、`simplified_ui`、[zellij-autolock](https://github.com/fresh2dev/zellij-autolock) plugin）。也可以只跑 `zellij/install.sh` 單獨安裝：它會自動判斷 macOS / Linux 與架構，macOS 沒有 Homebrew 時改抓 darwin release；zellij 已存在時只套用設定，要強制重裝加 `ZELLIJ_REINSTALL=1`。
-- [LazyVim](https://www.lazyvim.org)：Neovim starter 設定。
-- [nvm](https://github.com/nvm-sh/nvm)：懶載入 Node.js 版本管理。
-- 大量 history：保留 100,000 筆，減少重複與空白紀錄。
-
-## 快捷鍵
-
-| 快捷鍵 | macOS zsh | Ubuntu bash | 功能 |
-| --- | --- | --- | --- |
-| `Opt-X` / `Alt-X` | 有 | 有 | 用 fzf 搜尋檔案，選中後插入命令列 |
-| `Opt-C` / `Alt-C` | 有 | 有 | 用 fzf 搜尋目錄，選中後直接跳轉 |
-| `Ctrl-R` | shell 預設 | 有 | Ubuntu 用 fzf 逐行搜尋 `~/.bash_history` |
-| `Ctrl-T` | 取消綁定 | 取消綁定 | 避免與自訂 fzf 檔案搜尋鍵衝突 |
-| `↑` / `↓` | 有 | 有 | 依目前輸入逐行搜尋 `~/.bash_history` |
-| `Opt-←` / `Opt-→` | 有 | shell 預設 | macOS 以單字為單位左右移動游標 |
-| `Tab-h/j/k/l` | 無 | 有 | Ubuntu 透過 keyd 將 `Tab` 作為導航層，`h/j/k/l` 對應左/下/上/右 |
-
-fzf 搜尋會使用 `fd` 作為後端；預覽視窗會用 `eza` 顯示目錄內容，檔案則顯示前 50 行。Ubuntu 的 `Ctrl-R` history 搜尋預設使用 fzf history scoring，進入後可再按 `Ctrl-R` 切換排序模式。
-Ubuntu 的 ble.sh 會保留語法高亮、一般自動補全、歷史自動補全、Tab 候選選單與選單內過濾；`Ctrl-R`、`↑`、`↓` 都直接逐行讀取 `${HISTFILE:-~/.bash_history}`，顯示結果會和檔案實體行一致。
-
-多行貼上若在 `~/.bash_history` 中變成多個實體行，Ubuntu 的 history 搜尋也會把它們當成多筆候選。若要檢查或清理紀錄，可用 `nl -ba ~/.bash_history` 查看行號，直接編輯 `~/.bash_history` 後重新開啟 shell。
-
-zellij 的 keybinds 使用 `clear-defaults=true`，因此 `zellij/config.kdl` 的整個 keybinds 區塊都是必要的——刪掉任一段就等於少掉該快捷鍵，zellij 不會補回自己的預設值。zellij 在 normal 模式會吃掉 `Ctrl-p` / `Ctrl-n` / `Ctrl-s` / `Ctrl-o`（模式切換鍵）；autolock plugin 會在 `nvim`、`vim`、`fzf`、`zoxide`、`atuin`、`lazygit` 於前景執行時自動切到 Locked 模式，讓這些程式收到完整按鍵。日常 history 導覽用的是 `↑` / `↓`，不受影響。
-
-Ubuntu 會從源碼安裝 [keyd](https://github.com/rvaiya/keyd) 的最新穩定 tag，套用 `ubuntu/keyd/default.conf` 到 `/etc/keyd/default.conf`，通過 `keyd check` 後啟用 systemd 服務。單按 `Tab` 仍是正常 Tab；按住 `Tab` 再按 `h/j/k/l` 則輸出方向鍵。
-
-## Ubuntu 開發環境
-
-Ubuntu 安裝腳本會額外安裝一組常用開發工具：
-
-- CLI / 系統工具：`vim`、`nano`、`htop`、`net-tools`、`openssh-server`、`zip`、`unzip`
-- 編譯與除錯：`build-essential`、`cmake`、`gdb`、`pkg-config`
-- Python / OpenCV：`python3`、`pip`、`venv`、`python3-dev`、`python3-opencv`、`libopencv-dev`
-- Python AI 基礎套件：`numpy`、`scipy`、`pandas`、`matplotlib`、`scikit-learn`
-- VS Code：透過 Microsoft apt repository 安裝 `code`
-- ROS 2 Humble：只在 Ubuntu 22.04 `jammy` 透過 `ros2-apt-source` 安裝 `ros-humble-desktop`、`ros-dev-tools` 與 colcon 工具；Ubuntu 24.04 會略過 Humble
-
-安裝 ROS 2 Humble 後，Ubuntu `.bashrc` 會在 `/opt/ros/humble/setup.bash` 存在時自動 source。
-
-## 平台差異
-
-| 功能 | macOS | Ubuntu |
-| --- | --- | --- |
-| Shell | zsh | bash |
-| 外掛 / 補全 | zinit、fzf-tab | ble.sh、fzf 原生整合 |
-| 語法高亮 | zsh-syntax-highlighting | ble.sh |
-| 自動建議 | zsh-autosuggestions | ble.sh |
-| Prompt | starship | 系統預設 |
-| Conda 懶載入 | 有 | 無 |
-| fastfetch | 有 | 無 |
-| 系統鍵盤映射 | 無 | keyd |
-| ROS 2 | 無 | Humble（Ubuntu 22.04） |
-| VS Code | 無 | 有 |
-
-## 穩定性與啟動優化
-
-- macOS 會優先保留 `/opt/homebrew/bin`，避免 Apple Silicon 上被 `/usr/local/bin` 的舊 binary 蓋過。
-- zoxide / starship init 會快取到 `~/.cache`，並使用 temp file 後再原子替換，避免留下半成品 cache。
-- `TERM=dumb` 時 macOS 會跳過 starship，避免非標準終端輸出錯誤。
-- macOS 的 fastfetch 只在頂層 shell 執行，且在 tmux / zellij 內一律跳過。
-- Ubuntu 的 PATH 會去重，反覆 `source ~/.bashrc` 不會累加重複路徑。
-- 缺少 ble.sh、Kaku、bun、pipx 等可選工具時，rc 會安靜略過。
-- Ubuntu keyd 設定會先備份既有 `/etc/keyd/default.conf`，再套用此 repo 的版本。
-
-## 手動套用
-
-只想套用 rc，不跑完整安裝腳本時：
+已有 Neovim、只想套用或更新設定時，先關閉 Neovim，再於 Ubuntu 的專案根目錄執行：
 
 ```bash
-# macOS
-cp mac/.zshrc ~/.zshrc
-source ~/.zshrc
-
-# Ubuntu
-cp ubuntu/.bashrc ~/.bashrc
-source ~/.bashrc
-
-# zellij（兩平台共用）
-mkdir -p ~/.config/zellij
-cp zellij/config.kdl ~/.config/zellij/config.kdl
+bash ubuntu/nvim/install.sh
 ```
 
-建議先自行備份既有設定；完整安裝腳本會自動備份。
+腳本會先備份 `~/.config/nvim`，再複製專案設定；若有設定 `XDG_CONFIG_HOME`，則使用該目錄。備份位置會顯示在終端。這個腳本只套用設定，不安裝 Neovim 或系統套件，且不會在 macOS 上執行。
+
+不論使用完整安裝或單獨套用，首次開啟 `nvim` 後，等待外掛安裝完成，再執行：
+
+```vim
+:Lazy restore
+:LazyHealth
+```
+
+[`Lazy restore`](https://lazy.folke.io/usage/lockfile) 會按 `lazy-lock.json` 還原外掛版本。缺少的 tree-sitter CLI、語言工具或圖片功能依賴，可依 `LazyHealth` 結果補齊。外掛資料、Python 環境及快取不納入 Git。
+
+## 從 Mac 同步 LazyVim 設定
+
+在 Mac 修改設定後，於專案根目錄回存 Lua 設定、Extras 與外掛版本：
+
+```bash
+rsync -av --delete "${XDG_CONFIG_HOME:-$HOME/.config}/nvim/lua/" ubuntu/nvim/config/lua/
+cp "${XDG_CONFIG_HOME:-$HOME/.config}/nvim/lazy-lock.json" \
+   "${XDG_CONFIG_HOME:-$HOME/.config}/nvim/lazyvim.json" ubuntu/nvim/config/
+git diff -- ubuntu/nvim/
+git add ubuntu/nvim/
+git commit -m "Update LazyVim configuration"
+git push
+```
+
+`--delete` 會讓專案的 Lua 目錄同步刪除來源已移除的檔案。若修改 `init.lua`、`.neoconf.json` 或 `stylua.toml`，也需回存對應檔案；保留專案 `init.lua` 中依家目錄判斷 Python provider 的寫法。
+
+接著在 Ubuntu 的專案根目錄執行：
+
+```bash
+git pull
+bash ubuntu/nvim/install.sh
+```
+
+## 常用快捷鍵
+
+| 快捷鍵 | 功能 |
+| --- | --- |
+| `Opt-X` / `Alt-X` | 搜尋檔案，將路徑插入命令列 |
+| `Opt-C` / `Alt-C` | 搜尋目錄並切換過去 |
+| `↑` / `↓` | 依已輸入文字搜尋 shell 歷史 |
+| `Ctrl-R`（Ubuntu） | 用 fzf 搜尋 shell 歷史 |
+| 按住 `Tab` + `h/j/k/l`（Ubuntu） | 透過 keyd 輸出方向鍵；單按仍是 Tab |
+
+zellij 使用 tokyo-night 主題；autolock 會在 Neovim、fzf 等程式執行時讓快捷鍵直接傳給程式。

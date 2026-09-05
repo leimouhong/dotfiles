@@ -242,12 +242,16 @@ export NVM_DIR="$HOME/.nvm"
 nvm install --lts
 
 echo "==> 安裝 LazyVim"
-if [[ -d "$HOME/.config/nvim" ]]; then
-  mv "$HOME/.config/nvim" "$HOME/.config/nvim.backup.$(date +%Y%m%d_%H%M%S)"
-  echo "   已備份原有 nvim 設定至 ~/.config/nvim.backup.*"
+if [[ -f "$SCRIPT_DIR/nvim/install.sh" ]]; then
+  bash "$SCRIPT_DIR/nvim/install.sh"
+else
+  (
+    NVIM_INSTALLER=$(mktemp)
+    trap 'rm -f "$NVIM_INSTALLER"' EXIT
+    curl -fsSL https://raw.githubusercontent.com/leimouhong/dotfiles/main/ubuntu/nvim/install.sh -o "$NVIM_INSTALLER"
+    bash "$NVIM_INSTALLER"
+  )
 fi
-git clone -q https://github.com/LazyVim/starter "$HOME/.config/nvim"
-rm -rf "$HOME/.config/nvim/.git"
 
 echo "==> 套用 zellij 設定"
 mkdir -p "$HOME/.config/zellij"

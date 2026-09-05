@@ -52,17 +52,6 @@ export NVM_DIR="$HOME/.nvm"
 nvm install --lts
 
 ########################################
-# LazyVim
-########################################
-echo "==> 安裝 LazyVim"
-if [[ -d "$HOME/.config/nvim" ]]; then
-  mv "$HOME/.config/nvim" "$HOME/.config/nvim.backup.$(date +%Y%m%d_%H%M%S)"
-  echo "   已備份原有 nvim 設定至 ~/.config/nvim.backup.*"
-fi
-git clone -q https://github.com/LazyVim/starter "$HOME/.config/nvim"
-rm -rf "$HOME/.config/nvim/.git"
-
-########################################
 # 套用 zellij 設定
 ########################################
 echo "==> 套用 zellij 設定"
