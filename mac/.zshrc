@@ -38,7 +38,51 @@ export LESS='-R'
 zstyle ':zinit:*' list-command 'eza --color=always --group-directories-first'
 
 ########################################
-# 3. 歷史
+# 3. zoxide（快取 init 輸出；先於 Kaku，避免再載入 zsh-z）
+########################################
+if command -v zoxide >/dev/null 2>&1; then
+  _zoxide_cache="$HOME/.cache/zoxide-init.zsh"
+  if [[ ! -f "$_zoxide_cache" || "$(command -v zoxide)" -nt "$_zoxide_cache" ]]; then
+    mkdir -p "$HOME/.cache"
+    _zoxide_tmp="${_zoxide_cache}.$$"
+    if zoxide init zsh > "$_zoxide_tmp" && mv -f "$_zoxide_tmp" "$_zoxide_cache"; then
+      :
+    else
+      rm -f "$_zoxide_tmp"
+    fi
+    unset _zoxide_tmp
+  fi
+
+  if [[ -r "$_zoxide_cache" ]]; then
+    source "$_zoxide_cache"
+    alias j='z'
+    if typeset -f __zoxide_zi >/dev/null 2>&1; then
+      ji() { __zoxide_zi; }
+    fi
+  fi
+  unset _zoxide_cache
+  export _ZO_FZF_OPTS="--layout=reverse --delimiter=\"\\t\" --preview 'p={2}; p=\${p/#~/$HOME}; eza -1 --color=always --group-directories-first \"\$p\" | head -n 50'"
+fi
+
+########################################
+# 4. Kaku（先載入整合，再套用個人設定）
+########################################
+_kaku_bin="$HOME/.config/kaku/zsh/bin"
+[[ -d "$_kaku_bin" ]] && path=("$_kaku_bin" $path)
+unset _kaku_bin
+
+# 僅辨識 Kaku；保留文字選取、AI hooks、SSH 相容處理等功能。
+# Tab 由 fzf-tab 管理，避免 Kaku Smart Tab 與補全外掛互相覆蓋。
+if [[ "${TERM_PROGRAM:-}" == "Kaku" || "${TERM:-}" == "kaku" ]] &&
+   [[ -r "$HOME/.config/kaku/zsh/kaku.zsh" ]]; then
+  export KAKU_SMART_TAB_DISABLE=1
+  if [[ "${_dotfiles_kaku_loaded:-0}" != 1 ]]; then
+    source "$HOME/.config/kaku/zsh/kaku.zsh" && typeset -g _dotfiles_kaku_loaded=1
+  fi
+fi
+
+########################################
+# 5. 歷史
 ########################################
 HISTFILE="$HOME/.zsh_history"
 
@@ -47,6 +91,8 @@ HISTSIZE=120000
 SAVEHIST=100000
 
 # 多個終端即時共享歷史
+# SHARE_HISTORY 已負責即時寫入；保留較舊重複項至容量不足時再清理。
+unsetopt INC_APPEND_HISTORY INC_APPEND_HISTORY_TIME HIST_IGNORE_ALL_DUPS
 setopt SHARE_HISTORY
 setopt EXTENDED_HISTORY
 
@@ -67,7 +113,7 @@ setopt HIST_VERIFY
 setopt HIST_FCNTL_LOCK
 
 ########################################
-# 4. fzf
+# 6. fzf
 ########################################
 # fd 作為預設搜尋（有 fallback）
 if command -v fd >/dev/null 2>&1; then
@@ -96,7 +142,7 @@ bindkey '\ex' fzf-file-widget
 bindkey '\ec' fzf-cd-widget
 
 ########################################
-# 5. eza（替換 ls）
+# 7. eza（替換 ls）
 ########################################
 if command -v eza >/dev/null 2>&1; then
   alias ls='eza --group-directories-first'
@@ -109,50 +155,30 @@ else
 fi
 
 ########################################
-# 6. zoxide（快取 init 輸出）
-########################################
-if command -v zoxide >/dev/null 2>&1; then
-  _zoxide_cache="$HOME/.cache/zoxide-init.zsh"
-  if [[ ! -f "$_zoxide_cache" || "$(command -v zoxide)" -nt "$_zoxide_cache" ]]; then
-    mkdir -p "$HOME/.cache"
-    _zoxide_tmp="${_zoxide_cache}.$$"
-    if zoxide init zsh > "$_zoxide_tmp" && mv -f "$_zoxide_tmp" "$_zoxide_cache"; then
-      :
-    else
-      rm -f "$_zoxide_tmp"
-    fi
-    unset _zoxide_tmp
-  fi
-
-  if [[ -r "$_zoxide_cache" ]]; then
-    source "$_zoxide_cache"
-    alias j='z'
-    if typeset -f __zoxide_zi >/dev/null 2>&1; then
-      ji() { __zoxide_zi; }
-    fi
-  fi
-  unset _zoxide_cache
-  export _ZO_FZF_OPTS="--layout=reverse --delimiter=\"\\t\" --preview 'p={2}; p=\${p/#~/$HOME}; eza -1 --color=always --group-directories-first \"\$p\" | head -n 50'"
-fi
-
-########################################
-# 7. 外掛 + 補全系統（全部 turbo 延遲載入）
+# 8. 外掛 + 補全系統（Kaku 已提供的跳過，其餘 turbo 延遲載入）
 ########################################
 # 僅在 zinit 成功載入時設定外掛，避免缺 zinit 時噴 command not found
 if command -v zinit >/dev/null 2>&1; then
-  # atinit 在外掛 source 前執行 compinit
-  zinit ice wait"0" silent atinit"
-    autoload -Uz compinit
-    if [[ -n ~/.zcompdump(#qN.mh+24) ]]; then
-      compinit
-    else
-      compinit -C
-    fi
-    # 背景編譯 zcompdump 加速後續啟動
-    [[ ~/.zcompdump -nt ~/.zcompdump.zwc ]] && { zcompile ~/.zcompdump } &!
+  _kaku_completions="$HOME/.config/kaku/zsh/plugins/zsh-completions/src"
+  if (( ${fpath[(Ie)$_kaku_completions]} == 0 )); then
+    # 單引號讓檢查在延遲載入時執行，而非排程時展開。
+    zinit ice wait"0" silent atinit'
+      if ! (( ${+_comps} )); then
+        autoload -Uz compinit
+        if [[ -n ~/.zcompdump(#qN.mh+24) ]]; then
+          compinit
+        else
+          compinit -C
+        fi
+        [[ ~/.zcompdump -nt ~/.zcompdump.zwc ]] && { zcompile ~/.zcompdump } &!
+      fi
+      zicdreplay
+    '
+    zinit light zsh-users/zsh-completions
+  else
     zinit cdreplay -q
-  "
-  zinit light zsh-users/zsh-completions
+  fi
+  unset _kaku_completions
 
   # fzf-tab：增強 Tab 補全
   zinit ice wait"0" silent atload'
@@ -163,25 +189,43 @@ if command -v zinit >/dev/null 2>&1; then
   zinit light Aloxaf/fzf-tab
 
   # 自動建議
-  zinit ice wait"0" silent atload"_zsh_autosuggest_start"
-  zinit light zsh-users/zsh-autosuggestions
+  if ! (( ${+functions[_zsh_autosuggest_start]} )); then
+    zinit ice wait"0" silent atload"_zsh_autosuggest_start"
+    zinit light zsh-users/zsh-autosuggestions
+  fi
 
   # 歷史子字串搜尋（上下鍵）
-  zinit ice wait"0" silent atload'bindkey "^[[A" history-substring-search-up; bindkey "^[[B" history-substring-search-down'
+  zinit ice wait"0" silent atload'
+    for _history_keymap in emacs viins; do
+      bindkey -M "$_history_keymap" "^[[A" history-substring-search-up
+      bindkey -M "$_history_keymap" "^[[B" history-substring-search-down
+      bindkey -M "$_history_keymap" "^[OA" history-substring-search-up
+      bindkey -M "$_history_keymap" "^[OB" history-substring-search-down
+    done
+    unset _history_keymap
+  '
   zinit light zsh-users/zsh-history-substring-search
 
-  # 語法高亮（最後載入）
-  zinit ice wait"1" silent
-  zinit light zsh-users/zsh-syntax-highlighting
+  # Kaku 的高亮可能已排到首個 prompt，尚未出現 _zsh_highlight 函式。
+  if ! (( ${+functions[_zsh_highlight]} )) &&
+     (( ${precmd_functions[(Ie)zsh_syntax_highlighting_defer]} == 0 )) &&
+     (( ${precmd_functions[(Ie)fast_syntax_highlighting_defer]} == 0 )); then
+    zinit ice wait"1" silent
+    zinit light zsh-users/zsh-syntax-highlighting
+  fi
 else
   # zinit 缺失時的最小補全 fallback，確保仍有 Tab 補全
-  autoload -Uz compinit && compinit -C
+  if ! (( ${+_comps} )); then
+    autoload -Uz compinit && compinit -C
+  fi
 fi
 
 ########################################
-# 8. 主題（快取 starship init 輸出）
+# 9. 主題（Kaku 已初始化時沿用，其餘使用快取）
 ########################################
-if command -v starship >/dev/null 2>&1 && [[ "${TERM:-}" != "dumb" ]]; then
+if (( ${+functions[prompt_starship_precmd]} )); then
+  : # 保留 Kaku 的 Starship 初始化與 RPROMPT 修正，避免再註冊 hooks。
+elif command -v starship >/dev/null 2>&1 && [[ "${TERM:-}" != "dumb" ]]; then
   _starship_cache="$HOME/.cache/starship-init.zsh"
   if [[ ! -f "$_starship_cache" || "$(command -v starship)" -nt "$_starship_cache" ]]; then
     mkdir -p "$HOME/.cache"
@@ -204,14 +248,14 @@ else
 fi
 
 ########################################
-# 9. 快捷鍵模式
+# 10. 快捷鍵模式
 ########################################
 bindkey -e
 bindkey -M emacs '^[[1;3D' backward-word
 bindkey -M emacs '^[[1;3C' forward-word
 
 ########################################
-# 10. Conda（懶載入，大幅加速啟動）
+# 11. Conda（懶載入，大幅加速啟動）
 ########################################
 conda() {
   unfunction conda
@@ -228,7 +272,7 @@ conda() {
 }
 
 ########################################
-# 11. NVM（懶載入，大幅加速啟動）
+# 12. NVM（懶載入，大幅加速啟動）
 ########################################
 export NVM_DIR="$HOME/.nvm"
 
@@ -256,7 +300,7 @@ if [[ -d "$NVM_DIR/versions/node" ]]; then
 fi
 
 ########################################
-# 12. 其他 PATH
+# 13. 其他 PATH
 ########################################
 # /usr/local/bin（VS Code `code` 指令等）
 [[ -d /usr/local/bin ]] && path=($path /usr/local/bin)
@@ -277,24 +321,9 @@ path=( ${path:#} )
 path=( ${^path}(N-/) )
 
 ########################################
-# 13. fastfetch
+# 14. fastfetch
 ########################################
 # 只在頂層互動式 shell 顯示一次，避免每開一個子 shell 都付出啟動成本
 if [[ ${SHLVL:-1} -eq 1 ]] && [[ -z ${TMUX-} ]] && [[ -z ${ZELLIJ-} ]] && command -v fastfetch >/dev/null 2>&1; then
   fastfetch
-fi
-
-########################################
-# 14. Kaku
-########################################
-# 只保留 Kaku 的 bin 路徑，方便直接使用其包裝指令
-_kaku_bin="$HOME/.config/kaku/zsh/bin"
-[[ -d "$_kaku_bin" ]] && path=("$_kaku_bin" $path)
-unset _kaku_bin
-
-# 完整的 Kaku shell integration 僅在 Kaku 內載入，避免在其他終端造成不必要的開銷
-if [[ -f "$HOME/.config/kaku/zsh/kaku.zsh" ]] && {
-  [[ "${TERM_PROGRAM:-}" == "Kaku" ]] || [[ "${TERM:-}" == "kaku" ]] || [[ -n "${WEZTERM_PANE:-}" ]]
-}; then
-  source "$HOME/.config/kaku/zsh/kaku.zsh"
 fi
