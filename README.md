@@ -47,7 +47,18 @@ Mac 保持 Wi-Fi／其他上網連線，將連接機器人的乙太網路手動�
 
 Mac 使用 Tailscale Exit Node 時，可先 `source ~/.zshrc` 再執行 `proxy_route`，輸入 Mac 已設定的網線 IP，為機器人 `192.168.10.102` 建立或更新直連路由；不依賴 `en5` 等網卡名稱，重開機或網路重設後可重新執行。
 
-`mac/tinyproxy.conf` 參照 `/opt/homebrew/etc/tinyproxy/tinyproxy.conf` 的完整設定與註解。Mac 安裝會代入 IP 和 Homebrew 路徑，備份後寫入 `$(brew --prefix)/etc/tinyproxy/tinyproxy.conf`，監聽 Mac 網線 IP 的 `8888`，允許 loopback 及指定機器人 IP。若尚未接線，設好 IP 後執行 `brew services restart tinyproxy`；防火牆詢問時允許 tinyproxy 傳入連線。
+tinyproxy 在 Mac 提供 HTTP／HTTPS 代理，讓機器人的請求經 Mac 連外；`mac/install.sh` 會一併安裝及設定。
+
+`mac/tinyproxy.conf` 參照 `/opt/homebrew/etc/tinyproxy/tinyproxy.conf` 的完整設定與註解。安裝會代入 IP 和 Homebrew 路徑，備份後寫入 `$(brew --prefix)/etc/tinyproxy/tinyproxy.conf`：`Port` 為 `8888`、`Listen` 為 Mac 網線 IP，`Allow` 包含 loopback 及機器人 IP。
+
+接線並設好 Mac 網線 IP 後，在 **Mac** 執行；修改 tinyproxy 設定後也需重啟：
+
+```bash
+brew services restart tinyproxy
+brew services info tinyproxy
+```
+
+應顯示 `Running: true`。若服務啟動時網線 IP 尚未就緒，設好 IP 後再重啟；Mac 防火牆詢問時允許 tinyproxy 傳入連線。
 
 線上安裝使用上方命令。已有專案時，在各自的專案根目錄執行：
 
@@ -85,7 +96,9 @@ curl -fsSL --connect-timeout 10 --max-time 60 https://chatgpt.com/codex/install.
 codex --version
 ```
 
-- 連線拒絕／逾時：檢查網線、兩端 IP、Mac 防火牆及 `brew services info tinyproxy`。HTTP 403：確認機器人 IP 與 `Allow` 一致。
+- `curl: (7) ... Connection refused`：先在 Mac 檢查 `brew services info tinyproxy`；若 `Running: false`，執行 `brew services restart tinyproxy` 後重試下載。
+- 連線逾時：檢查網線、兩端 IP、路由及 Mac 防火牆。
+- HTTP 403：確認機器人 IP 與 tinyproxy 的 `Allow` 一致。
 - HTTP／HTTPS 代理均為 `http://<Mac IP>:8888`；`no_proxy` 設定 localhost、loopback、兩端 IP，以及 `10.0.0.0/16`、`192.168.0.0/16` 的直連例外（網段匹配需程式支援）。
 - 若 Ubuntu 完整安裝覆蓋 `.bashrc`，重跑 Robot 安裝以恢復代理設定與切換函式。
 - `sudo apt` 通常不保留代理；Robot 腳本僅為自己的 apt 指令傳入代理，未修改全系統 APT 設定。
