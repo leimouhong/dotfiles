@@ -74,12 +74,26 @@ proxy_on() {
   export no_proxy="localhost,127.0.0.1,::1,@listen_address@,@client_address@,10.0.0.0/16,192.168.0.0/16"
   export NO_PROXY="$no_proxy"
   unset all_proxy ALL_PROXY
-  printf '[代理] 已啟用\n  連線：%s\n  切換：proxy_off\n' "$http_proxy"
+  printf 'proxy on
+  連線方式：Mac 代理
+  HTTP    ：%s
+  HTTPS   ：%s
+  no_proxy：%s
+  生效範圍：目前終端及之後啟動的程式
+  新開終端：proxy on
+' "$http_proxy" "$https_proxy" "$no_proxy"
 }
 
 proxy_off() {
   unset http_proxy https_proxy HTTP_PROXY HTTPS_PROXY no_proxy NO_PROXY all_proxy ALL_PROXY
-  printf '[代理] 已關閉\n  連線：系統網路直連\n  切換：proxy_on\n'
+  printf 'proxy off
+  連線方式：系統網路直連
+  HTTP    ：未設定
+  HTTPS   ：未設定
+  no_proxy：未設定
+  生效範圍：目前終端及之後啟動的程式
+  新開終端：proxy on
+'
 }
 
 # 每次載入 .bashrc 預設啟用代理。

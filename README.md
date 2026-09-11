@@ -71,7 +71,7 @@ proxy_off  # 關閉代理，使用機器人自己的 Wi-Fi／系統網路
 proxy_on   # 改回 Mac 代理
 ```
 
-開關會顯示狀態、連線方式及切換命令。新開終端或 `source ~/.bashrc` 預設啟用代理，不保存開關狀態。切換只影響目前終端及之後啟動的程式；`proxy_off` 不會自動連接 Wi-Fi，需先確認 Wi-Fi 可上網。
+開關以 `proxy on`／`proxy off` 顯示狀態，列出 HTTP、HTTPS、直連例外及生效範圍。新開終端或 `source ~/.bashrc` 預設啟用代理，不保存開關狀態。切換只影響目前終端及之後啟動的程式；`proxy_off` 不會自動連接 Wi-Fi，需先確認 Wi-Fi 可上網。
 
 在機器人檢查 Mac 代理及 HTTPS 下載：
 
