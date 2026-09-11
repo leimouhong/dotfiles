@@ -18,10 +18,11 @@ bash <(curl -fsSL https://raw.githubusercontent.com/leimouhong/dotfiles/main/ubu
 source ~/.bashrc
 ```
 
-Ubuntu 機器人：先啟動 Mac 的 tinyproxy，首次下載即經 Mac 代理。將 `192.168.10.10` 換成實際的 Mac 網線 IP：
+Ubuntu 機器人：先啟動 Mac 的 tinyproxy，在機器人的 Bash 終端輸入 Mac 代理位址（`http://網線IP:8888`）；按 Enter 使用預設值。首次下載即經此代理，安裝時請填入同一個 Mac 網線 IP：
 
 ```bash
-bash <(curl -fsSL --proxy http://192.168.10.10:8888 --noproxy "" https://raw.githubusercontent.com/leimouhong/dotfiles/main/robot/install.sh)
+read -r -p 'Mac 代理位址 [http://192.168.10.10:8888]：' proxy_address
+bash <(curl -fsSL --proxy "${proxy_address:-http://192.168.10.10:8888}" --noproxy "" https://raw.githubusercontent.com/leimouhong/dotfiles/main/robot/install.sh)
 source ~/.bashrc
 ```
 
