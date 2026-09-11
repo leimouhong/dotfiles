@@ -1,6 +1,6 @@
 # dotfiles
 
-macOS 與 Ubuntu 的個人 shell、終端及開發環境設定。LazyVim 設定從 Mac 匯入，部署到 Ubuntu。
+macOS、Ubuntu 與 Ubuntu 機器人的 shell、終端及開發環境設定。安裝前會備份既有設定；下列線上命令使用 GitHub `main`，本機修改需先提交並推送。
 
 ## 安裝
 
@@ -8,109 +8,121 @@ macOS：
 
 ```bash
 bash <(curl -fsSL https://raw.githubusercontent.com/leimouhong/dotfiles/main/mac/install.sh)
+source ~/.zshrc
 ```
 
-Ubuntu 22.04 / 24.04（amd64 / arm64）：
+Ubuntu 22.04／24.04（amd64／arm64）：
 
 ```bash
 bash <(curl -fsSL https://raw.githubusercontent.com/leimouhong/dotfiles/main/ubuntu/install.sh)
+source ~/.bashrc
 ```
 
-| 平台 | 安裝內容 |
+Ubuntu 機器人：先啟動 Mac 的 tinyproxy，首次下載即經 Mac 代理。將 `192.168.10.10` 換成實際的 Mac 網線 IP：
+
+```bash
+bash <(curl -fsSL --proxy http://192.168.10.10:8888 --noproxy "" https://raw.githubusercontent.com/leimouhong/dotfiles/main/robot/install.sh)
+source ~/.bashrc
+```
+
+| 安裝項目 | 內容 |
 | --- | --- |
-| 共用 | eza、fzf、fd、ripgrep、zoxide、zellij、Neovim、lazygit、nvm 與 Node.js LTS、Tailscale |
-| macOS | zsh 設定、zinit、starship、fastfetch |
-| Ubuntu | bash 設定、ble.sh、個人 LazyVim 設定、keyd、VS Code、SSH server、C/C++ 開發工具、Python / OpenCV 與常用科學運算套件、Tailscale exit node |
+| Mac／Ubuntu 共用 | eza、fzf、fd、ripgrep、zoxide、zellij、Neovim、lazygit、nvm／Node.js LTS、Tailscale |
+| Mac | zsh、zinit、starship、fastfetch、tinyproxy |
+| Ubuntu | bash、ble.sh、LazyVim、keyd、VS Code、SSH server、C/C++、Python／OpenCV、Tailscale exit node；22.04 另裝 ROS 2 Humble |
+| Robot | Mac 代理設定、Codex CLI |
 
-Ubuntu 22.04 另安裝 ROS 2 Humble；24.04 會略過。腳本會備份既有設定，安裝後重新開啟終端即可。
+## 機器人設定
 
-**Ubuntu 完整安裝會自動安裝 Neovim，並套用 `ubuntu/nvim/config/`，毋須再執行設定安裝腳本。** macOS 會安裝 Neovim 程式，個人設定則沿用現有環境或使用移轉輔助程式搬移。
+Mac 保持 Wi-Fi／其他上網連線，將連接機器人的乙太網路手動設為同一網段。預設範例：Mac `192.168.10.10`、機器人 `192.168.10.102`、遮罩 `255.255.255.0`；專用直連網線的路由器欄位留空。兩端安裝會詢問 IP，不修改網卡設定。
 
-只裝 zellij（macOS / Linux）：
+`mac/tinyproxy.conf` 參照 `/opt/homebrew/etc/tinyproxy/tinyproxy.conf` 的完整設定與註解。Mac 安裝會代入 IP 和 Homebrew 路徑，備份後寫入 `$(brew --prefix)/etc/tinyproxy/tinyproxy.conf`，監聽 Mac 網線 IP 的 `8888`，允許 loopback 及指定機器人 IP。若尚未接線，設好 IP 後執行 `brew services restart tinyproxy`；防火牆詢問時允許 tinyproxy 傳入連線。
+
+線上安裝使用上方命令。已有專案時，在各自的專案根目錄執行：
+
+```bash
+# Mac
+bash mac/install.sh
+source ~/.zshrc
+```
+
+```bash
+# Ubuntu 機器人
+bash robot/install.sh
+source ~/.bashrc
+codex
+```
+
+機器人腳本支援 x86_64／ARM64 Ubuntu，經代理補裝 curl、CA 憑證及 [Codex CLI](https://learn.chatgpt.com/docs/codex/cli)。它保留既有 `.bashrc`，加入 `~/.config/robot/proxy.sh` 的載入行，重跑不重複追加；只需代理時，在安裝命令後加 `--proxy-only` 並省略 `codex`。未安裝 curl 時，可先從 Mac 經 SCP 傳入整個 `robot` 資料夾。
+
+在機器人檢查代理及 HTTPS 下載：
+
+```bash
+source "$HOME/.config/robot/proxy.sh"
+curl -fsS --proxy "$http_proxy" --noproxy "" http://tinyproxy.stats/
+curl -fsSL --connect-timeout 10 --max-time 60 https://chatgpt.com/codex/install.sh -o /dev/null
+codex --version
+```
+
+- 連線拒絕／逾時：檢查網線、兩端 IP、Mac 防火牆及 `brew services info tinyproxy`。HTTP 403：確認機器人 IP 與 `Allow` 一致。
+- HTTP／HTTPS 代理均為 `http://<Mac IP>:8888`；`no_proxy` 保留既有例外並加入 localhost、loopback 及兩端 IP。
+- 非互動式腳本需自行載入安裝後的 `~/.config/robot/proxy.sh`，勿載入專案內的範本。若 Ubuntu 完整安裝覆蓋 `.bashrc`，重跑 Robot 安裝以恢復載入行。
+- `sudo apt` 通常不保留代理；Robot 腳本僅為自己的 apt 指令傳入代理，未修改全系統 APT 設定。
+
+## 單獨安裝
+
+zellij（Mac）：
 
 ```bash
 bash <(curl -fsSL https://raw.githubusercontent.com/leimouhong/dotfiles/main/zellij/install.sh)
+source ~/.zshrc
 ```
 
-以上線上命令使用 GitHub 的 `main` 分支。本機修改需先提交並推送，其他機器才會取得新版。
-
-## Tailscale
-
-兩個平台的完整安裝腳本都會在最後安裝並啟用 Tailscale。首次執行需完成瀏覽器登入；已登入的裝置會沿用目前帳號及設定。
-
-- **macOS**：透過 Homebrew 的 `tailscale-app` cask 安裝官方圖形版，開啟 App 並呼叫內附 CLI 的 `up`。若 `/Applications` 或 `~/Applications` 已有 Tailscale App，直接沿用；若只有 Homebrew 命令列版，則啟動其系統服務並設為開機啟動。圖形版首次啟動時，須依提示允許網路擴充功能及 VPN 設定；若連線未完成，腳本會顯示可重試的命令。
-- **Ubuntu**：使用官方 Linux 安裝腳本（已安裝則跳過），透過 `systemctl enable --now tailscaled` 啟動並設為開機啟動。腳本管理 `/etc/sysctl.d/99-tailscale-dotfiles.conf`，持久啟用 IPv4 / IPv6 forwarding，立即套用後執行 `sudo tailscale set --advertise-exit-node` 及 `sudo tailscale up`，保留其他既有偏好。
-
-Ubuntu 完成登入後，若 tailnet 未設定自動核准，需到 [Tailscale 管理後台](https://login.tailscale.com/admin/machines) 選擇該裝置 → **Edit route settings** → 啟用 **Use as exit node**。核准後，其他裝置可在 Tailscale 的 Exit Node 選單選用它。
-
-可用 `tailscale status` 檢查連線；macOS 若未安裝 CLI integration，則執行 `/Applications/Tailscale.app/Contents/MacOS/Tailscale status`（App 安裝於使用者目錄時，改用 `~/Applications`）。
-
-參考：[macOS 安裝](https://tailscale.com/docs/install/mac)、[Linux 安裝](https://tailscale.com/docs/install/linux)、[Linux exit node 設定與核准](https://tailscale.com/docs/features/exit-nodes?tab=linux)。
-
-## 清理安裝備份
-
-在專案根目錄執行，會自動找出並刪除 macOS 與 Ubuntu 安裝流程產生的備份：
+zellij（Ubuntu／Bash）：
 
 ```bash
-bash cleanup-backups.sh --dry-run  # 預覽待刪除項目
-bash cleanup-backups.sh           # 刪除備份
+bash <(curl -fsSL https://raw.githubusercontent.com/leimouhong/dotfiles/main/zellij/install.sh)
+source ~/.bashrc
 ```
 
-其他 macOS / Ubuntu 電腦可直接透過 GitHub 執行，無需下載整個專案：
-
-```bash
-# 預覽待刪除項目
-bash <(curl -fsSL https://raw.githubusercontent.com/leimouhong/dotfiles/main/cleanup-backups.sh) --dry-run
-
-# 刪除備份
-bash <(curl -fsSL https://raw.githubusercontent.com/leimouhong/dotfiles/main/cleanup-backups.sh)
-```
-
-使用前需先將 `cleanup-backups.sh` 提交並推送到 GitHub 的 `main` 分支。
-
-清理範圍包括 `~/.zshrc.backup.*`、`~/.bashrc.backup.*`、`~/.config/zellij/config.kdl.backup.*`、`/etc/keyd/default.conf.backup.*`，以及 `${XDG_CONFIG_HOME:-$HOME/.config}/nvim.backup.*` 目錄。只匹配安裝腳本使用的時間戳格式；LazyVim 備份另須符合六位隨機字元後綴。keyd 備份需要權限時會使用 `sudo`，其餘以目前使用者身分刪除。
-
-## 專案結構
-
-```text
-cleanup-backups.sh
-mac/
-├── .zshrc
-└── install.sh
-ubuntu/
-├── .bashrc
-├── install.sh
-├── keyd/default.conf
-└── nvim/
-    ├── install.sh
-    └── config/          # init.lua、lua/、lazy-lock.json、lazyvim.json 等
-zellij/
-├── config.kdl
-└── install.sh
-```
-
-## LazyVim（Ubuntu）
-
-已有 Neovim、只想套用或更新設定時，先關閉 Neovim，再於 Ubuntu 的專案根目錄執行：
+LazyVim 設定（Ubuntu，需先安裝 Neovim）：關閉 Neovim，在專案根目錄執行。Ubuntu 完整安裝已包含此步驟。
 
 ```bash
 bash ubuntu/nvim/install.sh
+source ~/.bashrc
 ```
 
-腳本會先備份 `~/.config/nvim`，再複製專案設定；若有設定 `XDG_CONFIG_HOME`，則使用該目錄。備份位置會顯示在終端。這個腳本只套用設定，不安裝 Neovim 或系統套件，且不會在 macOS 上執行。
+腳本備份後套用至 `${XDG_CONFIG_HOME:-$HOME/.config}/nvim`。首次開啟 `nvim`，等待外掛安裝，再執行 `:Lazy restore` 與 `:LazyHealth`；缺少的工具依提示補齊。
 
-不論使用完整安裝或單獨套用，首次開啟 `nvim` 後，等待外掛安裝完成，再執行：
+## Tailscale
 
-```vim
-:Lazy restore
-:LazyHealth
+Mac／Ubuntu 完整安裝會啟用 Tailscale，首次使用需登入：
+
+- **Mac**：優先使用 Tailscale App；依提示允許網路擴充功能及 VPN。已有 Homebrew 命令列版時會沿用。
+- **Ubuntu**：啟動 `tailscaled`，啟用 IPv4／IPv6 forwarding，並公告為 exit node。若未自動核准，到 [管理後台](https://login.tailscale.com/admin/machines) → 裝置 → **Edit route settings** → **Use as exit node**。
+
+以 `tailscale status` 檢查連線。Mac 未安裝 CLI integration 時，使用 `/Applications/Tailscale.app/Contents/MacOS/Tailscale status`；App 裝於家目錄時改用 `~/Applications`。
+
+## 清理備份
+
+在專案根目錄執行：
+
+```bash
+bash cleanup-backups.sh --dry-run  # 預覽
+bash cleanup-backups.sh           # 刪除
 ```
 
-[`Lazy restore`](https://lazy.folke.io/usage/lockfile) 會按 `lazy-lock.json` 還原外掛版本。缺少的 tree-sitter CLI、語言工具或圖片功能依賴，可依 `LazyHealth` 結果補齊。外掛資料、Python 環境及快取不納入 Git。
+也可線上執行，移除 `--dry-run` 即刪除：
 
-## 從 Mac 同步 LazyVim 設定
+```bash
+bash <(curl -fsSL https://raw.githubusercontent.com/leimouhong/dotfiles/main/cleanup-backups.sh) --dry-run
+```
 
-在 Mac 修改設定後，於專案根目錄回存 Lua 設定、Extras 與外掛版本：
+清理範圍為 `.zshrc`、`.bashrc`、zellij、keyd 的時間戳備份，以及 LazyVim 的時間戳加隨機後綴備份。新增的 tinyproxy／Robot 備份不在清理範圍內；keyd 備份可能需要 `sudo`。
+
+## 從 Mac 同步 LazyVim
+
+在 Mac 的專案根目錄回存設定；`--delete` 會同步刪除來源已移除的 Lua 檔案：
 
 ```bash
 rsync -av --delete "${XDG_CONFIG_HOME:-$HOME/.config}/nvim/lua/" ubuntu/nvim/config/lua/
@@ -122,23 +134,22 @@ git commit -m "Update LazyVim configuration"
 git push
 ```
 
-`--delete` 會讓專案的 Lua 目錄同步刪除來源已移除的檔案。若修改 `init.lua`、`.neoconf.json` 或 `stylua.toml`，也需回存對應檔案；保留專案 `init.lua` 中依家目錄判斷 Python provider 的寫法。
-
-接著在 Ubuntu 的專案根目錄執行：
+若修改 `init.lua`、`.neoconf.json` 或 `stylua.toml`，也需回存；保留專案 `init.lua` 依家目錄判斷 Python provider 的寫法。接著在 Ubuntu 的專案根目錄執行：
 
 ```bash
 git pull
 bash ubuntu/nvim/install.sh
+source ~/.bashrc
 ```
 
 ## 常用快捷鍵
 
 | 快捷鍵 | 功能 |
 | --- | --- |
-| `Opt-X` / `Alt-X` | 搜尋檔案，將路徑插入命令列 |
-| `Opt-C` / `Alt-C` | 搜尋目錄並切換過去 |
-| `↑` / `↓` | 依已輸入文字搜尋 shell 歷史 |
-| `Ctrl-R`（Ubuntu） | 用 fzf 搜尋 shell 歷史 |
-| 按住 `Tab` + `h/j/k/l`（Ubuntu） | 透過 keyd 輸出方向鍵；單按仍是 Tab |
+| `Opt-X`／`Alt-X` | 搜尋檔案並插入路徑 |
+| `Opt-C`／`Alt-C` | 搜尋並切換目錄 |
+| `↑`／`↓` | 依已輸入文字搜尋歷史 |
+| `Ctrl-R`（Ubuntu） | fzf 搜尋歷史 |
+| 按住 `Tab` + `h/j/k/l`（Ubuntu） | keyd 方向鍵；單按仍是 Tab |
 
-zellij 使用 tokyo-night 主題；autolock 會在 Neovim、fzf 等程式執行時讓快捷鍵直接傳給程式。
+zellij 使用 tokyo-night 主題；autolock 讓 Neovim、fzf 等程式直接接收快捷鍵。
