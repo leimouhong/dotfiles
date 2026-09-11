@@ -327,3 +327,21 @@ path=( ${^path}(N-/) )
 if [[ ${SHLVL:-1} -eq 1 ]] && [[ -z ${TMUX-} ]] && [[ -z ${ZELLIJ-} ]] && command -v fastfetch >/dev/null 2>&1; then
   fastfetch
 fi
+
+########################################
+# 15. 機器人網線路由
+########################################
+proxy_route() {
+  local listen_address
+  read -r "listen_address?Mac 已設定的網線 IP（例如 192.168.10.10）： " || return 1
+  if ! ifconfig | awk -v ip="$listen_address" '$1 == "inet" && $2 == ip {found=1} END {exit !found}'; then
+    print -u2 "此 Mac 未設定 IP：$listen_address，請先設定網線 IP。"
+    return 1
+  fi
+
+  sudo -v || return
+  if ! sudo route -n add -host 192.168.10.102 -interface "$listen_address" >/dev/null 2>&1; then
+    sudo route -n change -host 192.168.10.102 -interface "$listen_address" >/dev/null || return
+  fi
+  printf 'proxy route\n  Mac   ：%s\n  Robot ：192.168.10.102\n' "$listen_address"
+}

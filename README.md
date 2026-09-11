@@ -45,6 +45,8 @@ source ~/.bashrc
 
 Mac 保持 Wi-Fi／其他上網連線，將連接機器人的乙太網路手動設為同一網段。預設範例：Mac `192.168.10.10`、機器人 `192.168.10.102`、遮罩 `255.255.255.0`；專用直連網線的路由器欄位留空。兩端安裝會詢問 IP，不修改網卡設定。
 
+Mac 使用 Tailscale Exit Node 時，可先 `source ~/.zshrc` 再執行 `proxy_route`，輸入 Mac 已設定的網線 IP，為機器人 `192.168.10.102` 建立或更新直連路由；不依賴 `en5` 等網卡名稱，重開機或網路重設後可重新執行。
+
 `mac/tinyproxy.conf` 參照 `/opt/homebrew/etc/tinyproxy/tinyproxy.conf` 的完整設定與註解。Mac 安裝會代入 IP 和 Homebrew 路徑，備份後寫入 `$(brew --prefix)/etc/tinyproxy/tinyproxy.conf`，監聽 Mac 網線 IP 的 `8888`，允許 loopback 及指定機器人 IP。若尚未接線，設好 IP 後執行 `brew services restart tinyproxy`；防火牆詢問時允許 tinyproxy 傳入連線。
 
 線上安裝使用上方命令。已有專案時，在各自的專案根目錄執行：
