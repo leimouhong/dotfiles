@@ -18,9 +18,9 @@ bash <(curl -fsSL https://raw.githubusercontent.com/leimouhong/dotfiles/main/ubu
 
 | 平台 | 安裝內容 |
 | --- | --- |
-| 共用 | eza、fzf、fd、ripgrep、zoxide、zellij、Neovim、lazygit、nvm 與 Node.js LTS |
+| 共用 | eza、fzf、fd、ripgrep、zoxide、zellij、Neovim、lazygit、nvm 與 Node.js LTS、Tailscale |
 | macOS | zsh 設定、zinit、starship、fastfetch |
-| Ubuntu | bash 設定、ble.sh、個人 LazyVim 設定、keyd、VS Code、SSH server、C/C++ 開發工具、Python / OpenCV 與常用科學運算套件 |
+| Ubuntu | bash 設定、ble.sh、個人 LazyVim 設定、keyd、VS Code、SSH server、C/C++ 開發工具、Python / OpenCV 與常用科學運算套件、Tailscale exit node |
 
 Ubuntu 22.04 另安裝 ROS 2 Humble；24.04 會略過。腳本會備份既有設定，安裝後重新開啟終端即可。
 
@@ -33,6 +33,19 @@ bash <(curl -fsSL https://raw.githubusercontent.com/leimouhong/dotfiles/main/zel
 ```
 
 以上線上命令使用 GitHub 的 `main` 分支。本機修改需先提交並推送，其他機器才會取得新版。
+
+## Tailscale
+
+兩個平台的完整安裝腳本都會在最後安裝並啟用 Tailscale。首次執行需完成瀏覽器登入；已登入的裝置會沿用目前帳號及設定。
+
+- **macOS**：透過 Homebrew 的 `tailscale-app` cask 安裝官方圖形版，開啟 App 並呼叫內附 CLI 的 `up`。若 `/Applications` 或 `~/Applications` 已有 Tailscale App，直接沿用；若只有 Homebrew 命令列版，則啟動其系統服務並設為開機啟動。圖形版首次啟動時，須依提示允許網路擴充功能及 VPN 設定；若連線未完成，腳本會顯示可重試的命令。
+- **Ubuntu**：使用官方 Linux 安裝腳本（已安裝則跳過），透過 `systemctl enable --now tailscaled` 啟動並設為開機啟動。腳本管理 `/etc/sysctl.d/99-tailscale-dotfiles.conf`，持久啟用 IPv4 / IPv6 forwarding，立即套用後執行 `sudo tailscale set --advertise-exit-node` 及 `sudo tailscale up`，保留其他既有偏好。
+
+Ubuntu 完成登入後，若 tailnet 未設定自動核准，需到 [Tailscale 管理後台](https://login.tailscale.com/admin/machines) 選擇該裝置 → **Edit route settings** → 啟用 **Use as exit node**。核准後，其他裝置可在 Tailscale 的 Exit Node 選單選用它。
+
+可用 `tailscale status` 檢查連線；macOS 若未安裝 CLI integration，則執行 `/Applications/Tailscale.app/Contents/MacOS/Tailscale status`（App 安裝於使用者目錄時，改用 `~/Applications`）。
+
+參考：[macOS 安裝](https://tailscale.com/docs/install/mac)、[Linux 安裝](https://tailscale.com/docs/install/linux)、[Linux exit node 設定與核准](https://tailscale.com/docs/features/exit-nodes?tab=linux)。
 
 ## 清理安裝備份
 

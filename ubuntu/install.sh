@@ -276,4 +276,34 @@ else
   curl -fsSL https://raw.githubusercontent.com/leimouhong/dotfiles/main/ubuntu/.bashrc -o ~/.bashrc
 fi
 
+########################################
+# Tailscale exit node（最後連線，首次登入不阻塞其他套件安裝）
+########################################
+echo "==> 安裝 Tailscale"
+if ! command -v tailscale >/dev/null 2>&1; then
+  curl -fsSL https://tailscale.com/install.sh | sh
+else
+  echo "   Tailscale 已安裝，跳過"
+fi
+sudo systemctl enable --now tailscaled
+
+echo "==> 啟用 exit node 所需的 IPv4 / IPv6 forwarding"
+# 專用檔案由 dotfiles 管理；重跑時覆寫，避免重複追加設定。
+sudo mkdir -p /etc/sysctl.d
+sudo tee /etc/sysctl.d/99-tailscale-dotfiles.conf >/dev/null <<'EOF'
+# Managed by dotfiles/ubuntu/install.sh
+net.ipv4.ip_forward = 1
+net.ipv6.conf.all.forwarding = 1
+EOF
+sudo sysctl -p /etc/sysctl.d/99-tailscale-dotfiles.conf
+
+echo "==> 啟用 Tailscale 並公告為 exit node"
+echo "   首次使用請開啟下方登入網址，完成 Tailscale 登入。"
+# set 僅修改指定選項，保留既有 DNS、路由等偏好；up 負責登入及連線。
+sudo tailscale set --advertise-exit-node
+sudo tailscale up
+sudo tailscale status
+echo "   如未設定自動核准，請到 https://login.tailscale.com/admin/machines"
+echo "   選擇此裝置 → Edit route settings → 勾選 Use as exit node。"
+
 echo "✅ 完成！執行 source ~/.bashrc 生效"

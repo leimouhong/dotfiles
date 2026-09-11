@@ -80,5 +80,38 @@ else
   curl -fsSL https://raw.githubusercontent.com/leimouhong/dotfiles/main/mac/.zshrc -o "$HOME/.zshrc"
 fi
 
+########################################
+# Tailscale（最後連線，首次登入不阻塞其他套件安裝）
+########################################
+echo "==> 安裝並啟用 Tailscale"
+TAILSCALE_APP="/Applications/Tailscale.app"
+if [[ ! -x "$TAILSCALE_APP/Contents/MacOS/Tailscale" &&
+      -x "$HOME/Applications/Tailscale.app/Contents/MacOS/Tailscale" ]]; then
+  TAILSCALE_APP="$HOME/Applications/Tailscale.app"
+fi
+
+if [[ ! -x "$TAILSCALE_APP/Contents/MacOS/Tailscale" ]] &&
+   brew list --formula tailscale >/dev/null 2>&1; then
+  # 沿用已安裝的命令列版，避免同時啟動兩種 Tailscale。
+  sudo "$(command -v brew)" services start tailscale
+  TAILSCALE_CMD=(sudo "$(brew --prefix tailscale)/bin/tailscale")
+else
+  if [[ ! -x "$TAILSCALE_APP/Contents/MacOS/Tailscale" ]]; then
+    brew install --cask --appdir=/Applications tailscale-app
+  fi
+  open -a "$TAILSCALE_APP"
+  echo "   首次使用請在 Tailscale App／系統設定允許網路擴充功能及 VPN，並完成登入。"
+  TAILSCALE_CMD=(env TAILSCALE_BE_CLI=1 "$TAILSCALE_APP/Contents/MacOS/Tailscale")
+fi
+
+if ! "${TAILSCALE_CMD[@]}" up; then
+  echo "Tailscale 尚未完成連線。請處理上方錯誤／登入提示後，執行：" >&2
+  printf ' %q' "${TAILSCALE_CMD[@]}" up >&2
+  printf '\n' >&2
+  exit 1
+fi
+"${TAILSCALE_CMD[@]}" status
+unset TAILSCALE_APP TAILSCALE_CMD
+
 echo ""
 echo "✅ 完成！執行 source ~/.zshrc 生效"
