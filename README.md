@@ -18,7 +18,7 @@ bash <(curl -fsSL https://raw.githubusercontent.com/leimouhong/dotfiles/main/ubu
 source ~/.bashrc
 ```
 
-Ubuntu 機器人：下載方式二選一。腳本啟動後會詢問兩端 IP，設定 Mac 代理並下載安裝套件；請先準備好 Mac 的 tinyproxy 與網線連線。
+Ubuntu 機器人：下載方式二選一。腳本啟動後只詢問 Mac 網線 IP，設定代理並下載安裝套件；請先準備好 Mac 的 tinyproxy 與網線連線。
 
 透過機器人自己的 Wi-Fi 下載（需能連到 GitHub）：
 
@@ -43,7 +43,7 @@ source ~/.bashrc
 
 ## 機器人設定
 
-Mac 保持 Wi-Fi／其他上網連線，將連接機器人的乙太網路手動設為同一網段。預設範例：Mac `192.168.10.10`、機器人 `192.168.10.102`、遮罩 `255.255.255.0`；專用直連網線的路由器欄位留空。兩端安裝會詢問 IP，不修改網卡設定。
+Mac 保持 Wi-Fi／其他上網連線，將連接機器人的乙太網路手動設為同一網段。預設範例：Mac `192.168.10.10`、機器人 `192.168.10.102`、遮罩 `255.255.255.0`；專用直連網線的路由器欄位留空。Mac 安裝詢問兩端 IP；Robot 安裝只詢問 Mac 網線 IP，機器人 IP 固定為 `192.168.10.102`。安裝腳本不修改網卡設定。
 
 Mac 使用 Tailscale Exit Node 時，可先 `source ~/.zshrc` 再執行 `proxy_route`，輸入 Mac 已設定的網線 IP，為機器人 `192.168.10.102` 建立或更新直連路由；不依賴 `en5` 等網卡名稱，重開機或網路重設後可重新執行。
 

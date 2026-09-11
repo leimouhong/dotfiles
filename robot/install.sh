@@ -33,7 +33,7 @@ esac
 read_ip() {
   local label="$1" default_ip="$2" value
   if [[ ! -t 0 ]]; then
-    echo "請在互動式終端執行，以輸入 Mac 和機器人的 IP。" >&2
+    echo "請在互動式終端執行，以輸入 Mac 的網線 IP。" >&2
     return 1
   fi
   read -r -p "$label [$default_ip]：" value
@@ -48,7 +48,7 @@ read_ip() {
 
 echo "==> Robot 代理設定"
 listen_address=$(read_ip "Mac 連接機器人的網線 IP" 192.168.10.10)
-client_address=$(read_ip "機器人的固定 IP" 192.168.10.102)
+client_address=192.168.10.102
 if [[ "$listen_address" == "$client_address" ]]; then
   echo "Mac 和機器人不能使用相同 IP。" >&2
   exit 1
