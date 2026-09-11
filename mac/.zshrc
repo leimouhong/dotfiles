@@ -331,7 +331,9 @@ fi
 ########################################
 # 15. 機器人網線路由
 ########################################
-proxy_route() {
+proxy_robot() {
+  brew services restart tinyproxy || return
+
   local listen_address
   read -r "listen_address?Mac 已設定的網線 IP（例如 192.168.10.10）： " || return 1
   if ! ifconfig | awk -v ip="$listen_address" '$1 == "inet" && $2 == ip {found=1} END {exit !found}'; then
@@ -343,5 +345,5 @@ proxy_route() {
   if ! sudo route -n add -host 192.168.10.102 -interface "$listen_address" >/dev/null 2>&1; then
     sudo route -n change -host 192.168.10.102 -interface "$listen_address" >/dev/null || return
   fi
-  printf 'proxy route\n  Mac   ：%s\n  Robot ：192.168.10.102\n' "$listen_address"
+  printf 'proxy robot\n  Mac   ：%s\n  Robot ：192.168.10.102\n' "$listen_address"
 }

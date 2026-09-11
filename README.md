@@ -57,7 +57,7 @@ brew services info tinyproxy
 
 確認 `Running: true`；Mac 防火牆詢問時允許 tinyproxy 傳入連線。tinyproxy 讓機器人的 HTTP／HTTPS 請求經 Mac 連外，設定檔位於 `$(brew --prefix)/etc/tinyproxy/tinyproxy.conf`。
 
-若 Mac 使用 Tailscale Exit Node，保持 **Allow Local Network Access** 開啟，再執行 `proxy_route`，輸入 Mac 網線 IP，為 `192.168.10.102` 建立直連路由；重開機或網路重設後可重新執行。
+若 Mac 使用 Tailscale Exit Node，保持 **Allow Local Network Access** 開啟，再執行 `proxy_robot`，先重啟 Tinyproxy，成功後輸入 Mac 網線 IP，為 `192.168.10.102` 建立直連路由；重開機或網路重設後可重新執行。
 
 ### Robot 使用
 
