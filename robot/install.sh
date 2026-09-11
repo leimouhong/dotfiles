@@ -74,21 +74,19 @@ proxy_on() {
   export no_proxy="localhost,127.0.0.1,::1,@listen_address@,@client_address@,10.0.0.0/16,192.168.0.0/16"
   export NO_PROXY="$no_proxy"
   unset all_proxy ALL_PROXY
-  printf 'proxy on
-  連線方式：Mac 代理
-  HTTP    ：%s
-  HTTPS   ：%s
-  no_proxy：%s
+  printf 'proxy_on -> Mac proxy
+  HTTP    : %s
+  HTTPS   : %s
+  no_proxy: %s
 ' "$http_proxy" "$https_proxy" "$no_proxy"
 }
 
 proxy_off() {
   unset http_proxy https_proxy HTTP_PROXY HTTPS_PROXY no_proxy NO_PROXY all_proxy ALL_PROXY
-  printf 'proxy off
-  連線方式：系統網路直連
-  HTTP    ：未設定
-  HTTPS   ：未設定
-  no_proxy：未設定
+  printf 'proxy_off -> Direct system connection
+  HTTP    : Not set
+  HTTPS   : Not set
+  no_proxy: Not set
 '
 }
 
