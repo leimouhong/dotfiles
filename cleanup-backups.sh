@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-# 清理 mac/install.sh、ubuntu/install.sh（含 LazyVim）產生的備份。
+# 清理 Mac、Ubuntu、Robot、zellij 與 LazyVim 安裝腳本產生的備份。
 set -euo pipefail
 
 CLEANUP_DRY_RUN=0
@@ -11,7 +11,7 @@ remove_backup() {
   if [[ "$CLEANUP_DRY_RUN" == 1 ]]; then
     printf '   [預覽] %s\n' "$backup"
   else
-    # 家目錄的備份以目前使用者刪除；只有 keyd 備份可能需要 sudo。
+    # 一般備份以目前使用者刪除；只有 keyd 備份可能需要 sudo。
     if [[ "$backup" == /etc/keyd/* && ! -w /etc/keyd ]]; then
       sudo rm "$flags" -- "$backup"
     else
@@ -24,14 +24,30 @@ remove_backup() {
 
 cleanup_file_backups() {
   local original="$1" backup suffix
-  local timestamp_regex='^[0-9]{8}_[0-9]{6}$'
+  local suffix_regex='^[0-9]{8}_[0-9]{6}$'
+  suffix_regex="${2:-$suffix_regex}"
 
   for backup in "$original".backup.*; do
     [[ -f "$backup" || -L "$backup" ]] || continue
     suffix="${backup#"$original.backup."}"
-    [[ "$suffix" =~ $timestamp_regex ]] || continue
+    [[ "$suffix" =~ $suffix_regex ]] || continue
     remove_backup "$backup" -f
   done
+}
+
+cleanup_tinyproxy_backups() {
+  local brew_prefix
+  local suffix_regex='^[0-9]{8}_[0-9]{6}\.[[:alnum:]]{6}$'
+
+  if command -v brew >/dev/null 2>&1; then
+    brew_prefix=$(brew --prefix)
+    cleanup_file_backups "$brew_prefix/etc/tinyproxy/tinyproxy.conf" "$suffix_regex"
+  else
+    # brew 未載入 PATH 或已移除時，仍檢查兩種 Mac 的標準安裝位置。
+    for brew_prefix in /opt/homebrew /usr/local; do
+      cleanup_file_backups "$brew_prefix/etc/tinyproxy/tinyproxy.conf" "$suffix_regex"
+    done
+  fi
 }
 
 cleanup_nvim_backups() {
@@ -55,7 +71,7 @@ main() {
         cat <<'EOF'
 用法：bash cleanup-backups.sh [--dry-run]
 
-自動刪除 macOS 與 Ubuntu 安裝腳本產生的設定備份。
+自動刪除 Mac、Ubuntu、Robot、zellij 與 LazyVim 安裝腳本產生的設定備份。
   --dry-run  只列出符合條件的備份，不刪除
   -h, --help 顯示說明
 EOF
@@ -68,9 +84,10 @@ EOF
 
   echo "==> 檢查安裝腳本產生的備份"
   cleanup_file_backups "$HOME/.zshrc"
-  cleanup_file_backups "$HOME/.bashrc"
+  cleanup_file_backups "$HOME/.bashrc" '^[0-9]{8}_[0-9]{6}(\.[[:alnum:]]{6})?$'
   cleanup_file_backups "$HOME/.config/zellij/config.kdl"
   cleanup_file_backups /etc/keyd/default.conf
+  cleanup_tinyproxy_backups
   cleanup_nvim_backups "${XDG_CONFIG_HOME:-$HOME/.config}"
 
   if [[ "$CLEANUP_COUNT" == 0 ]]; then

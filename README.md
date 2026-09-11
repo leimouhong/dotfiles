@@ -129,7 +129,7 @@ bash cleanup-backups.sh           # 刪除
 bash <(curl -fsSL https://raw.githubusercontent.com/leimouhong/dotfiles/main/cleanup-backups.sh) --dry-run
 ```
 
-清理範圍為 `.zshrc`、`.bashrc`、zellij、keyd 的時間戳備份，以及 LazyVim 的時間戳加隨機後綴備份。新增的 tinyproxy／Robot 備份不在清理範圍內；keyd 備份可能需要 `sudo`。
+清理範圍包含 `.zshrc`、`.bashrc`（含 Robot）、zellij、keyd、tinyproxy 與 LazyVim 的安裝備份。只匹配各腳本的時間戳及六位隨機後綴格式；tinyproxy 路徑依 Homebrew 判斷，keyd 備份可能需要 `sudo`。
 
 ## 從 Mac 同步 LazyVim
 
