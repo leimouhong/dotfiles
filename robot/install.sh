@@ -46,6 +46,7 @@ read_ip() {
   printf '%s\n' "$value"
 }
 
+echo "==> Robot 代理設定"
 listen_address=$(read_ip "Mac 連接機器人的網線 IP" 192.168.10.10)
 client_address=$(read_ip "機器人的固定 IP" 192.168.10.102)
 if [[ "$listen_address" == "$client_address" ]]; then
@@ -73,12 +74,12 @@ proxy_on() {
   export no_proxy="localhost,127.0.0.1,::1,@listen_address@,@client_address@,10.0.0.0/16,192.168.0.0/16"
   export NO_PROXY="$no_proxy"
   unset all_proxy ALL_PROXY
-  echo "proxy: on -> @listen_address@:8888"
+  printf '[代理] 已啟用\n  連線：%s\n  切換：proxy_off\n' "$http_proxy"
 }
 
 proxy_off() {
   unset http_proxy https_proxy HTTP_PROXY HTTPS_PROXY no_proxy NO_PROXY all_proxy ALL_PROXY
-  echo "proxy: off"
+  printf '[代理] 已關閉\n  連線：系統網路直連\n  切換：proxy_on\n'
 }
 
 # 每次載入 .bashrc 預設啟用代理。
@@ -134,7 +135,7 @@ if ! cmp -s "$WORK_DIR/bashrc" "$HOME/.bashrc"; then
 fi
 
 # 只載入剛產生的設定，避免執行既有 .bashrc 中的機器人啟動指令。
-. "$WORK_DIR/proxy.sh"
+. "$WORK_DIR/proxy.sh" >/dev/null
 
 # 安裝所需的套件與 Codex 均經由 Mac 下載。
 if ! command -v curl >/dev/null 2>&1 || [[ ! -s /etc/ssl/certs/ca-certificates.crt ]]; then
@@ -165,8 +166,10 @@ if [[ "$INSTALL_CODEX" == 1 ]]; then
   codex --version
 fi
 
-echo "✅ 完成！在目前終端執行 source ~/.bashrc 生效。"
-echo "   切換上網方式：proxy_on / proxy_off；新開終端預設啟用代理。"
+printf '\n[完成] 設定已寫入 ~/.bashrc\n'
+echo "  載入：source ~/.bashrc"
+echo "  開啟：proxy_on"
+echo "  關閉：proxy_off"
 if [[ "$INSTALL_CODEX" == 1 ]]; then
-  echo "   執行 codex 開始使用。"
+  echo "  使用：codex"
 fi
