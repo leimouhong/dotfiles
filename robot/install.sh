@@ -53,13 +53,10 @@ if [[ "$listen_address" == "$client_address" ]]; then
   exit 1
 fi
 
-SCRIPT_DIR="$(cd -- "$(dirname -- "${BASH_SOURCE[0]}")" && pwd)"
-CONFIG_DIR="$HOME/.config/robot"
-CONFIG_FILE="$CONFIG_DIR/proxy.sh"
 WORK_DIR=$(mktemp -d)
 trap 'rm -rf "$WORK_DIR"' EXIT
 
-# 線上安裝尚未取得 proxy.sh 時，也需經由 Mac 下載套件及設定。
+# 安裝所需的套件與 Codex 均經由 Mac 下載。
 export http_proxy="http://$listen_address:8888"
 export https_proxy="$http_proxy" HTTP_PROXY="$http_proxy" HTTPS_PROXY="$http_proxy"
 
@@ -72,37 +69,138 @@ if ! command -v curl >/dev/null 2>&1 || [[ ! -s /etc/ssl/certs/ca-certificates.c
   "${SUDO[@]}" apt-get "${APT_PROXY[@]}" install -y curl ca-certificates
 fi
 
-if [[ -f "$SCRIPT_DIR/proxy.sh" ]]; then
-  cp "$SCRIPT_DIR/proxy.sh" "$WORK_DIR/proxy.template.sh"
+# 代理設定直接寫入 .bashrc；範本只在安裝期間存放於暫存目錄。
+cat > "$WORK_DIR/proxy.template.sh" <<'PROXY_CONFIG'
+# >>> dotfiles robot proxy >>>
+# ======================================================================
+# 【機器人代理設定：開始】由 robot/install.sh 自動管理
+# proxy on：Mac 代理 | proxy off：系統網路直連 | proxy status：查看狀態
+# 重新安裝會更新此區塊，保留 .bashrc 的其他設定。
+# ======================================================================
+
+_robot_proxy_apply() {
+  if [[ "$1" == off ]]; then
+    unset http_proxy https_proxy HTTP_PROXY HTTPS_PROXY all_proxy ALL_PROXY
+    return
+  fi
+
+  export http_proxy="http://@listen_address@:8888"
+  export https_proxy="$http_proxy" HTTP_PROXY="$http_proxy" HTTPS_PROXY="$http_proxy"
+  unset all_proxy ALL_PROXY
+
+  # 保留既有例外；重複切換不會重複追加。
+  local direct_host
+  no_proxy="${no_proxy:-${NO_PROXY:-}}"
+  for direct_host in localhost 127.0.0.1 ::1 @listen_address@ @client_address@; do
+    case ",$no_proxy," in
+      *",$direct_host,"*) ;;
+      *) no_proxy="${no_proxy:+$no_proxy,}$direct_host" ;;
+    esac
+  done
+  export no_proxy
+  export NO_PROXY="$no_proxy"
+}
+
+proxy() {
+  local state_file="$HOME/.config/robot/proxy.disabled"
+  if [[ $# -gt 1 ]]; then
+    echo "用法：proxy [on|off|status]" >&2
+    return 1
+  fi
+  case "${1:-status}" in
+    on)
+      rm -f "$state_file" || return
+      _robot_proxy_apply on
+      echo "已啟用 Mac 代理：http://@listen_address@:8888（新開終端也會啟用）"
+      ;;
+    off)
+      mkdir -p "${state_file%/*}" && touch "$state_file" || return
+      _robot_proxy_apply off
+      echo "已關閉代理，使用系統網路直連（新開終端也會關閉）"
+      ;;
+    status)
+      if [[ "${http_proxy:-}" == "http://@listen_address@:8888" &&
+            "${https_proxy:-}" == "${http_proxy:-}" &&
+            "${HTTP_PROXY:-}" == "${http_proxy:-}" &&
+            "${HTTPS_PROXY:-}" == "${http_proxy:-}" ]]; then
+        echo "目前終端：Mac 代理 http://@listen_address@:8888"
+      elif [[ -n "${http_proxy:-}${https_proxy:-}${HTTP_PROXY:-}${HTTPS_PROXY:-}${all_proxy:-}${ALL_PROXY:-}" ]]; then
+        echo "目前終端：其他或部分代理設定"
+      else
+        echo "目前終端：直連"
+      fi
+      if [[ -e "$state_file" ]]; then
+        echo "新開終端：直連"
+      else
+        echo "新開終端：Mac 代理"
+      fi
+      ;;
+    *) echo "用法：proxy [on|off|status]" >&2; return 1 ;;
+  esac
+}
+
+# 首次安裝預設使用 Mac 代理，之後依最後一次切換的狀態載入。
+if [[ -e "$HOME/.config/robot/proxy.disabled" ]]; then
+  _robot_proxy_apply off
 else
-  curl -fsSL --connect-timeout 10 --max-time 60 \
-    https://raw.githubusercontent.com/leimouhong/dotfiles/main/robot/proxy.sh -o "$WORK_DIR/proxy.template.sh"
+  _robot_proxy_apply on
 fi
+
+# Codex 官方獨立安裝程式的預設執行檔目錄。
+case ":$PATH:" in
+  *":$HOME/.local/bin:"*) ;;
+  *) export PATH="$HOME/.local/bin:$PATH" ;;
+esac
+
+# ======================================================================
+# 【機器人代理設定：結束】
+# ======================================================================
+# <<< dotfiles robot proxy <<<
+PROXY_CONFIG
 sed -e "s/@listen_address@/$listen_address/g" -e "s/@client_address@/$client_address/g" \
   "$WORK_DIR/proxy.template.sh" > "$WORK_DIR/proxy.sh"
 bash -n "$WORK_DIR/proxy.sh"
-mkdir -p "$CONFIG_DIR"
-if ! cmp -s "$WORK_DIR/proxy.sh" "$CONFIG_FILE"; then
-  if [[ -e "$CONFIG_FILE" ]]; then
-    BACKUP=$(mktemp "$CONFIG_FILE.backup.$(date +%Y%m%d_%H%M%S).XXXXXX")
-    cp -p "$CONFIG_FILE" "$BACKUP"
-    echo "   已備份原有代理設定至 $BACKUP"
-  fi
-  cp "$WORK_DIR/proxy.sh" "$CONFIG_FILE"
-fi
 
-BASHRC_LINE='[[ -r "$HOME/.config/robot/proxy.sh" ]] && . "$HOME/.config/robot/proxy.sh"'
-if ! grep -Fqx "$BASHRC_LINE" "$HOME/.bashrc" 2>/dev/null; then
+# 更新已管理的區塊，保留 .bashrc 的其他內容。
+BASHRC_INPUT=/dev/null
+if [[ -e "$HOME/.bashrc" ]]; then BASHRC_INPUT="$HOME/.bashrc"; fi
+if ! awk -v block="$WORK_DIR/proxy.sh" '
+  BEGIN {
+    while ((getline line < block) > 0) replacement = replacement line ORS
+    close(block)
+  }
+  $0 == "# >>> dotfiles robot proxy >>>" {
+    if (inside) {invalid=1; exit 1}
+    if (!found) printf "%s", replacement
+    found=1; inside=1; next
+  }
+  $0 == "# <<< dotfiles robot proxy <<<" {
+    if (!inside) {invalid=1; exit 1}
+    inside=0; next
+  }
+  !inside {print}
+  END {
+    if (invalid || inside) exit 1
+    if (!found) printf "%s", replacement
+  }
+' "$BASHRC_INPUT" > "$WORK_DIR/bashrc"; then
+  echo ".bashrc 的 robot proxy 區塊標記不完整，請先修正；原檔未修改。" >&2
+  exit 1
+fi
+bash -n "$WORK_DIR/bashrc"
+if ! cmp -s "$WORK_DIR/bashrc" "$HOME/.bashrc"; then
   if [[ -e "$HOME/.bashrc" ]]; then
     BACKUP=$(mktemp "$HOME/.bashrc.backup.$(date +%Y%m%d_%H%M%S).XXXXXX")
     cp -p "$HOME/.bashrc" "$BACKUP"
     echo "   已備份原有 .bashrc 至 $BACKUP"
   fi
-  printf '\n# dotfiles robot proxy\n%s\n' "$BASHRC_LINE" >> "$HOME/.bashrc"
+  cat "$WORK_DIR/bashrc" > "$HOME/.bashrc"
 fi
 
-# 不 source 整份 .bashrc，避免其中的互動式判斷或機器人啟動指令影響安裝。
-. "$CONFIG_FILE"
+# 只載入剛產生的設定，避免執行既有 .bashrc 中的機器人啟動指令。
+. "$WORK_DIR/proxy.sh"
+# 安裝期間使用 Mac 下載；保留使用者為新終端選擇的 on/off 狀態。
+_robot_proxy_apply on
 echo "==> 檢查 Mac 代理 $https_proxy"
 if ! curl -fsSL --proxy "$https_proxy" --noproxy "" --connect-timeout 10 --max-time 30 \
   http://tinyproxy.stats/ -o "$WORK_DIR/proxy-stats.html"; then
@@ -123,6 +221,7 @@ if [[ "$INSTALL_CODEX" == 1 ]]; then
 fi
 
 echo "✅ 完成！在目前終端執行 source ~/.bashrc 生效。"
+echo "   切換上網方式：proxy on / proxy off；查看狀態：proxy status。"
 if [[ "$INSTALL_CODEX" == 1 ]]; then
   echo "   執行 codex 開始使用。"
 fi

@@ -53,12 +53,23 @@ source ~/.bashrc
 codex
 ```
 
-機器人腳本支援 x86_64／ARM64 Ubuntu，經代理補裝 curl、CA 憑證及 [Codex CLI](https://learn.chatgpt.com/docs/codex/cli)。它保留既有 `.bashrc`，加入 `~/.config/robot/proxy.sh` 的載入行，重跑不重複追加；只需代理時，在安裝命令後加 `--proxy-only` 並省略 `codex`。未安裝 curl 時，可先從 Mac 經 SCP 傳入整個 `robot` 資料夾。
+機器人腳本支援 x86_64／ARM64 Ubuntu，經代理補裝 curl、CA 憑證及 [Codex CLI](https://learn.chatgpt.com/docs/codex/cli)。代理設定與切換函式直接寫入 `.bashrc` 的標記區塊，重跑只更新該區塊，保留其他設定；只需代理時，在安裝命令後加 `--proxy-only` 並省略 `codex`。未安裝 curl 時，可先從 Mac 經 SCP 傳入 `robot/install.sh`。
 
-在機器人檢查代理及 HTTPS 下載：
+切換上網方式（更新已有設定時，先重跑 Robot 安裝並 `source ~/.bashrc`）：
 
 ```bash
-source "$HOME/.config/robot/proxy.sh"
+proxy off     # 關閉代理，使用機器人自己的 Wi-Fi／系統網路
+proxy on      # 改回 Mac 代理
+proxy status  # 查看目前終端及新終端的設定
+```
+
+切換會記住狀態，新開終端自動沿用；其他已開啟的終端及程式需重新載入或啟動。`proxy off` 不會自動連接 Wi-Fi，需先確認機器人的 Wi-Fi 與預設路由可上網。
+
+在機器人檢查 Mac 代理及 HTTPS 下載：
+
+```bash
+source ~/.bashrc
+proxy on
 curl -fsS --proxy "$http_proxy" --noproxy "" http://tinyproxy.stats/
 curl -fsSL --connect-timeout 10 --max-time 60 https://chatgpt.com/codex/install.sh -o /dev/null
 codex --version
@@ -66,7 +77,7 @@ codex --version
 
 - 連線拒絕／逾時：檢查網線、兩端 IP、Mac 防火牆及 `brew services info tinyproxy`。HTTP 403：確認機器人 IP 與 `Allow` 一致。
 - HTTP／HTTPS 代理均為 `http://<Mac IP>:8888`；`no_proxy` 保留既有例外並加入 localhost、loopback 及兩端 IP。
-- 非互動式腳本需自行載入安裝後的 `~/.config/robot/proxy.sh`，勿載入專案內的範本。若 Ubuntu 完整安裝覆蓋 `.bashrc`，重跑 Robot 安裝以恢復載入行。
+- 若 Ubuntu 完整安裝覆蓋 `.bashrc`，重跑 Robot 安裝以恢復代理設定與切換函式。
 - `sudo apt` 通常不保留代理；Robot 腳本僅為自己的 apt 指令傳入代理，未修改全系統 APT 設定。
 
 ## 單獨安裝
