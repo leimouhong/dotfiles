@@ -18,10 +18,19 @@ bash <(curl -fsSL https://raw.githubusercontent.com/leimouhong/dotfiles/main/ubu
 source ~/.bashrc
 ```
 
-Ubuntu 機器人：先透過機器人自己的 Wi-Fi 下載腳本，需能連到 GitHub。腳本啟動後才詢問兩端 IP，設定 Mac 代理並下載安裝套件；請先準備好 Mac 的 tinyproxy 與網線連線。
+Ubuntu 機器人：下載方式二選一。腳本啟動後會詢問兩端 IP，設定 Mac 代理並下載安裝套件；請先準備好 Mac 的 tinyproxy 與網線連線。
+
+透過機器人自己的 Wi-Fi 下載（需能連到 GitHub）：
 
 ```bash
 bash <(curl -fsSL https://raw.githubusercontent.com/leimouhong/dotfiles/main/robot/install.sh)
+source ~/.bashrc
+```
+
+透過 Mac 代理下載（將 `192.168.10.10` 換成實際的 Mac 網線 IP）：
+
+```bash
+bash <(curl -fsSL --proxy http://192.168.10.10:8888 --noproxy "" https://raw.githubusercontent.com/leimouhong/dotfiles/main/robot/install.sh)
 source ~/.bashrc
 ```
 
