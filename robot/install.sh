@@ -79,8 +79,6 @@ proxy_on() {
   HTTP    ：%s
   HTTPS   ：%s
   no_proxy：%s
-  生效範圍：目前終端及之後啟動的程式
-  新開終端：proxy on
 ' "$http_proxy" "$https_proxy" "$no_proxy"
 }
 
@@ -91,8 +89,6 @@ proxy_off() {
   HTTP    ：未設定
   HTTPS   ：未設定
   no_proxy：未設定
-  生效範圍：目前終端及之後啟動的程式
-  新開終端：proxy on
 '
 }
 
