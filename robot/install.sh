@@ -90,8 +90,8 @@ proxy_off() {
 '
 }
 
-# 每次載入 .bashrc 預設啟用代理。
-proxy_on
+# 每次載入 .bashrc 預設 proxy_off。
+proxy_off
 
 # Codex 官方獨立安裝程式的預設執行檔目錄。
 case ":$PATH:" in
