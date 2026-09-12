@@ -36,9 +36,9 @@ source ~/.bashrc
 
 | 安裝項目 | 內容 |
 | --- | --- |
-| Mac／Ubuntu 共用 | eza、fzf、fd、ripgrep、zoxide、zellij、Neovim、lazygit、nvm／Node.js LTS、Tailscale |
-| Mac | zsh、zinit、starship、fastfetch、tinyproxy |
-| Ubuntu | bash、ble.sh、LazyVim、keyd、VS Code、SSH server、C/C++、Python／OpenCV、Tailscale exit node；22.04 另裝 ROS 2 Humble |
+| Mac／Ubuntu 共用 | eza、fzf、fd、ripgrep、zoxide、zellij、Neovim、lazygit、nvm／Node.js LTS |
+| Mac | zsh、zinit、starship、fastfetch、tinyproxy、Tailscale |
+| Ubuntu | bash、ble.sh、LazyVim、keyd、VS Code、SSH server、C/C++、Python／OpenCV；22.04 另裝 ROS 2 Humble；最後詢問是否啟用 Tailscale／設定 exit node |
 | Robot | Mac 代理設定、Codex CLI |
 
 ## 機器人設定
@@ -107,10 +107,8 @@ source ~/.bashrc
 
 ## Tailscale
 
-Mac／Ubuntu 完整安裝會啟用 Tailscale，首次使用需登入：
-
-- **Mac**：優先使用 Tailscale App；依提示允許網路擴充功能及 VPN。已有 Homebrew 命令列版時會沿用。
-- **Ubuntu**：啟動 `tailscaled`，啟用 IPv4／IPv6 forwarding，並公告為 exit node。若未自動核准，到 [管理後台](https://login.tailscale.com/admin/machines) → 裝置 → **Edit route settings** → **Use as exit node**。
+- **Mac**：完整安裝會啟用 Tailscale，首次使用需登入。優先使用 Tailscale App；依提示允許網路擴充功能及 VPN。已有 Homebrew 命令列版時會沿用。
+- **Ubuntu**：腳本最後會詢問是否安裝並啟用 Tailscale，預設為否；同意後才安裝、啟動服務並登入，再詢問是否將此裝置設為 exit node，預設也為否。只有同意設定 exit node 才會啟用 IPv4／IPv6 forwarding 並公告。非互動式執行會略過 Tailscale 設定。若未自動核准，到 [管理後台](https://login.tailscale.com/admin/machines) → 裝置 → **Edit route settings** → **Use as exit node**。
 
 以 `tailscale status` 檢查連線。Mac 未安裝 CLI integration 時，使用 `/Applications/Tailscale.app/Contents/MacOS/Tailscale status`；App 裝於家目錄時改用 `~/Applications`。
 
