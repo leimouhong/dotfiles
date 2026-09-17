@@ -308,6 +308,12 @@ fi
 # Antigravity
 [[ -d "$HOME/.antigravity/antigravity/bin" ]] && path=("$HOME/.antigravity/antigravity/bin" $path)
 
+# opencode
+export PATH=/Users/mouhong/.opencode/bin:$PATH
+
+# sbin
+export PATH="/opt/homebrew/sbin:$PATH"
+
 # bun
 export BUN_INSTALL="$HOME/.bun"
 [[ -d "$BUN_INSTALL/bin" ]] && path=("$BUN_INSTALL/bin" $path)
@@ -327,3 +333,8 @@ path=( ${^path}(N-/) )
 if [[ ${SHLVL:-1} -eq 1 ]] && [[ -z ${TMUX-} ]] && [[ -z ${ZELLIJ-} ]] && command -v fastfetch >/dev/null 2>&1; then
   fastfetch
 fi
+
+export PATH="$HOME/.local/bin:$PATH"
+
+[[ ":$PATH:" != *":$HOME/.config/kaku/zsh/bin:"* ]] && export PATH="$HOME/.config/kaku/zsh/bin:$PATH" # Kaku PATH Integration
+[[ -f "$HOME/.config/kaku/zsh/kaku.zsh" ]] && source "$HOME/.config/kaku/zsh/kaku.zsh" # Kaku Shell Integration
