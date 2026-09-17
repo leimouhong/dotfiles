@@ -79,8 +79,8 @@ echo "==> 設定機器人使用的 tinyproxy"
   else
     curl -fsSL https://raw.githubusercontent.com/leimouhong/dotfiles/main/mac/tinyproxy.conf -o "$WORK_DIR/template.conf"
   fi
-  sed -e "s/@listen_address@/$listen_address/g" \
-    -e "s/@client_address@/$client_address/g" \
+  # 模板固定 Listen 0.0.0.0，只需要代入機器人 IP 與 Homebrew 路徑。
+  sed -e "s/@client_address@/$client_address/g" \
     -e "s|@brew_prefix@|$BREW_PREFIX|g" \
     -e "s|@tinyproxy_prefix@|$TINYPROXY_PREFIX|g" \
     "$WORK_DIR/template.conf" > "$WORK_DIR/tinyproxy.conf"
@@ -96,12 +96,12 @@ echo "==> 設定機器人使用的 tinyproxy"
   fi
   echo "==> 已套用 $CONFIG_FILE"
 
-  if ifconfig | awk -v ip="$listen_address" '$1 == "inet" && $2 == ip {found=1} END {exit !found}'; then
-    echo "==> 重啟 tinyproxy"
-    brew services restart tinyproxy
-  else
-    echo "   設定已保存，但 Mac 尚無 ${listen_address}，暫不重啟 tinyproxy。"
-    echo "   接線並設定網卡 IP 後，執行 brew services restart tinyproxy。"
+  # tinyproxy 監聽 0.0.0.0，macOS 會自動綁定所有網路介面，無需額外設定。
+  echo "==> 重啟 tinyproxy"
+  brew services restart tinyproxy
+
+  if ! ifconfig | awk -v ip="$listen_address" '$1 == "inet" && $2 == ip {found=1} END {exit !found}'; then
+    echo "   提醒：Mac 尚無 ${listen_address}，tinyproxy 已在執行。"
   fi
 )
 
