@@ -4,13 +4,32 @@ set -euo pipefail
 
 SCRIPT_DIR="$(cd -- "$(dirname -- "${BASH_SOURCE[0]}")" && pwd)"
 CONFIG_URL="https://raw.githubusercontent.com/leimouhong/dotfiles/main/zellij/config.kdl"
-CONFIG_DIR="$HOME/.config/zellij"
+CONFIG_DIR="${XDG_CONFIG_HOME:-$HOME/.config}/zellij"
+WORK_DIR=$(mktemp -d)
+CONFIG_STAGE=""
+trap 'rm -rf "$WORK_DIR"; if [[ -n "$CONFIG_STAGE" ]]; then rm -f "$CONFIG_STAGE"; fi' EXIT
+
+# 先下載完整設定；網路失敗時保留既有設定。
+if [[ -f "$SCRIPT_DIR/config.kdl" ]]; then
+  cp "$SCRIPT_DIR/config.kdl" "$WORK_DIR/config.kdl"
+else
+  curl -fsSL --retry 3 "$CONFIG_URL" -o "$WORK_DIR/config.kdl"
+fi
 
 # ZELLIJ_REINSTALL=1 可強制重裝已存在的 zellij
 ZELLIJ_REINSTALL="${ZELLIJ_REINSTALL:-0}"
 
 # 取得最新版本號（帶 v 前綴）
-_latest_v() { curl -s "https://api.github.com/repos/$1/releases/latest" | grep '"tag_name"' | sed 's/.*"\([^"]*\)".*/\1/'; }
+_latest_v() {
+  local tag
+  tag=$(curl -fsSL --retry 3 "https://api.github.com/repos/$1/releases/latest" \
+    | sed -n 's/^[[:space:]]*"tag_name":[[:space:]]*"\([^"]*\)".*/\1/p') || return 1
+  if [[ ! "$tag" =~ ^v[0-9]+(\.[0-9]+)+$ ]]; then
+    echo "無法取得有效的 zellij 版本。" >&2
+    return 1
+  fi
+  printf '%s\n' "$tag"
+}
 
 ########################################
 # 安裝 zellij
@@ -42,19 +61,22 @@ install_zellij_linux() {
 }
 
 install_zellij_release() {
-  local arch="$1" tag tmp
+  local arch="$1" tag
   tag=$(_latest_v zellij-org/zellij)
-  if [[ -z "$tag" ]]; then
-    echo "無法取得 zellij 最新版本（GitHub API 可能被限流），請稍後再試"
-    exit 1
-  fi
-  echo "   版本：$tag（$arch）"
-  tmp=$(mktemp -d)
-  curl -fsSL -o "$tmp/zellij.tar.gz" \
+  echo "   版本：${tag}（${arch}）"
+  curl -fsSL --retry 3 -o "$WORK_DIR/zellij.tar.gz" \
     "https://github.com/zellij-org/zellij/releases/download/${tag}/zellij-${arch}.tar.gz"
-  tar -xzf "$tmp/zellij.tar.gz" -C "$tmp" zellij
-  sudo install "$tmp/zellij" /usr/local/bin/zellij
-  rm -rf "$tmp"
+  tar -xzf "$WORK_DIR/zellij.tar.gz" -C "$WORK_DIR" zellij
+  # 驗證架構與設定相容性後，再替換執行檔。
+  "$WORK_DIR/zellij" --version
+  "$WORK_DIR/zellij" --config "$WORK_DIR/config.kdl" setup --check
+  if [[ $EUID -eq 0 ]]; then
+    install -d -m 0755 /usr/local/bin
+    install -m 0755 "$WORK_DIR/zellij" /usr/local/bin/zellij
+  else
+    sudo install -d -m 0755 /usr/local/bin
+    sudo install -m 0755 "$WORK_DIR/zellij" /usr/local/bin/zellij
+  fi
 }
 
 if command -v zellij >/dev/null 2>&1 && [[ "$ZELLIJ_REINSTALL" != "1" ]]; then
@@ -72,17 +94,21 @@ fi
 # 套用 zellij 設定
 ########################################
 echo "==> 套用 zellij 設定"
+zellij --config "$WORK_DIR/config.kdl" setup --check
 mkdir -p "$CONFIG_DIR"
-if [[ -f "$CONFIG_DIR/config.kdl" ]]; then
-  cp "$CONFIG_DIR/config.kdl" "$CONFIG_DIR/config.kdl.backup.$(date +%Y%m%d_%H%M%S)"
-  echo "   已備份原有 zellij 設定至 ~/.config/zellij/config.kdl.backup.*"
-fi
-if [[ -f "$SCRIPT_DIR/config.kdl" ]]; then
-  cp "$SCRIPT_DIR/config.kdl" "$CONFIG_DIR/config.kdl"
-  echo "   已套用 $SCRIPT_DIR/config.kdl"
+if cmp -s "$WORK_DIR/config.kdl" "$CONFIG_DIR/config.kdl"; then
+  echo "   zellij 設定相同，保留現有檔案。"
 else
-  curl -fsSL "$CONFIG_URL" -o "$CONFIG_DIR/config.kdl"
-  echo "   已從 GitHub 下載設定檔"
+  # 在設定目錄先準備完整檔案，再備份及切換，避免覆寫符號連結的目標。
+  CONFIG_STAGE=$(mktemp "$CONFIG_DIR/.config.kdl.XXXXXX")
+  cp "$WORK_DIR/config.kdl" "$CONFIG_STAGE"
+  if [[ -e "$CONFIG_DIR/config.kdl" || -L "$CONFIG_DIR/config.kdl" ]]; then
+    BACKUP=$(mktemp -d "$CONFIG_DIR/backup.$(date +%Y%m%d_%H%M%S).XXXXXX")
+    cp -P "$CONFIG_DIR/config.kdl" "$BACKUP/config.kdl"
+    echo "   已備份原有 zellij 設定至 $BACKUP/config.kdl"
+  fi
+  mv "$CONFIG_STAGE" "$CONFIG_DIR/config.kdl"
+  echo "   已套用 zellij 設定。"
 fi
 
 echo ""

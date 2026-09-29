@@ -1,12 +1,8 @@
-# macOS
+__MACOSX
 .DS_Store
-
-# 編輯器暫存
 *.swp
 *.swo
 *~
-
-# 敏感資訊（萬一不小心放進來）
 *.env
 .env*
 *_secret*

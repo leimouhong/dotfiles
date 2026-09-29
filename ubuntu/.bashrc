@@ -58,6 +58,7 @@ fi
 ########################################
 if command -v eza >/dev/null 2>&1; then
   alias ls='eza --group-directories-first'
+  alias l='eza --group-directories-first'
   alias ll='eza -lh --group-directories-first'
   alias la='eza -lah --group-directories-first'
   alias lt='eza --tree --level=2 --group-directories-first'
@@ -128,10 +129,9 @@ if [[ ${BLE_VERSION-} ]]; then
   __dotfiles_ble_history_bindings
   ble-import -d integration/fzf-completion
   ble-import -d integration/fzf-key-bindings -C __dotfiles_ble_fzf_bindings
-elif [[ -r ~/.fzf/shell/key-bindings.bash && -r ~/.fzf/shell/completion.bash ]]; then
+elif command -v fzf >/dev/null 2>&1; then
   # 沒有 ble.sh 時才退回 fzf 原生 bash 綁定
-  source ~/.fzf/shell/key-bindings.bash
-  source ~/.fzf/shell/completion.bash
+  eval "$(fzf --bash)"
 
   # 重新綁定快捷鍵（需在 source 之後）
   bind -m emacs -r '\C-t' 2>/dev/null
@@ -217,7 +217,7 @@ if command -v zoxide >/dev/null 2>&1; then
     source "$_zoxide_cache"
     alias j='z'
     if declare -F __zoxide_zi >/dev/null 2>&1; then
-      ji() { __zoxide_zi; }
+      ji() { __zoxide_zi "$@"; }
     fi
   fi
   unset _zoxide_cache

@@ -69,7 +69,7 @@ main() {
       --dry-run) CLEANUP_DRY_RUN=1 ;;
       -h|--help)
         cat <<'EOF'
-用法：bash cleanup-backups.sh [--dry-run]
+用法：bash scripts/clean-backups.sh [--dry-run]
 
 自動刪除 Mac、Ubuntu、Robot、zellij 與 LazyVim 安裝腳本產生的設定備份。
   --dry-run  只列出符合條件的備份，不刪除

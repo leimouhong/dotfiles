@@ -57,7 +57,9 @@ if command -v zoxide >/dev/null 2>&1; then
     source "$_zoxide_cache"
     alias j='z'
     if typeset -f __zoxide_zi >/dev/null 2>&1; then
-      ji() { __zoxide_zi; }
+      # zi 留給 zoxide；外掛管理使用完整的 zinit 指令。
+      unalias zi 2>/dev/null
+      ji() { __zoxide_zi "$@"; }
     fi
   fi
   unset _zoxide_cache
@@ -142,20 +144,7 @@ bindkey '\ex' fzf-file-widget
 bindkey '\ec' fzf-cd-widget
 
 ########################################
-# 7. eza（替換 ls）
-########################################
-if command -v eza >/dev/null 2>&1; then
-  alias ls='eza --group-directories-first'
-  alias ll='eza -lh --group-directories-first'
-  alias la='eza -lah --group-directories-first'
-  alias lt='eza --tree --level=2 --group-directories-first'
-else
-  # macOS BSD ls 不支援 --color，使用 -G
-  alias ls='ls -G'
-fi
-
-########################################
-# 8. 外掛 + 補全系統（Kaku 已提供的跳過，其餘 turbo 延遲載入）
+# 7. 外掛 + 補全系統（Kaku 已提供的跳過，其餘 turbo 延遲載入）
 ########################################
 # 僅在 zinit 成功載入時設定外掛，避免缺 zinit 時噴 command not found
 if command -v zinit >/dev/null 2>&1; then
@@ -221,7 +210,7 @@ else
 fi
 
 ########################################
-# 9. 主題（Kaku 已初始化時沿用，其餘使用快取）
+# 8. 主題（Kaku 已初始化時沿用，其餘使用快取）
 ########################################
 if (( ${+functions[prompt_starship_precmd]} )); then
   : # 保留 Kaku 的 Starship 初始化與 RPROMPT 修正，避免再註冊 hooks。
@@ -248,14 +237,14 @@ else
 fi
 
 ########################################
-# 10. 快捷鍵模式
+# 9. 快捷鍵模式
 ########################################
 bindkey -e
 bindkey -M emacs '^[[1;3D' backward-word
 bindkey -M emacs '^[[1;3C' forward-word
 
 ########################################
-# 11. Conda（懶載入，大幅加速啟動）
+# 10. Conda（懶載入，大幅加速啟動）
 ########################################
 conda() {
   unfunction conda
@@ -272,7 +261,7 @@ conda() {
 }
 
 ########################################
-# 12. NVM（懶載入，大幅加速啟動）
+# 11. NVM（懶載入，大幅加速啟動）
 ########################################
 export NVM_DIR="$HOME/.nvm"
 
@@ -300,7 +289,7 @@ if [[ -d "$NVM_DIR/versions/node" ]]; then
 fi
 
 ########################################
-# 13. 其他 PATH
+# 12. 其他 PATH
 ########################################
 # /usr/local/bin（VS Code `code` 指令等）
 [[ -d /usr/local/bin ]] && path=($path /usr/local/bin)
@@ -319,7 +308,7 @@ export BUN_INSTALL="$HOME/.bun"
 [[ -d "$BUN_INSTALL/bin" ]] && path=("$BUN_INSTALL/bin" $path)
 [ -s "$HOME/.bun/_bun" ] && source "$HOME/.bun/_bun"
 
-# pipx
+# 使用者命令列工具（uv 與 App 輔助程式）
 [[ -d "$HOME/.local/bin" ]] && path=("$HOME/.local/bin" $path)
 
 # 移除不存在的 PATH
@@ -327,7 +316,7 @@ path=( ${path:#} )
 path=( ${^path}(N-/) )
 
 ########################################
-# 14. fastfetch
+# 13. fastfetch
 ########################################
 # 只在頂層互動式 shell 顯示一次，避免每開一個子 shell 都付出啟動成本
 if [[ ${SHLVL:-1} -eq 1 ]] && [[ -z ${TMUX-} ]] && [[ -z ${ZELLIJ-} ]] && command -v fastfetch >/dev/null 2>&1; then
@@ -338,3 +327,17 @@ export PATH="$HOME/.local/bin:$PATH"
 
 [[ ":$PATH:" != *":$HOME/.config/kaku/zsh/bin:"* ]] && export PATH="$HOME/.config/kaku/zsh/bin:$PATH" # Kaku PATH Integration
 [[ -f "$HOME/.config/kaku/zsh/kaku.zsh" ]] && source "$HOME/.config/kaku/zsh/kaku.zsh" # Kaku Shell Integration
+
+########################################
+# 14. eza（最後套用，避免 Kaku 覆蓋個人別名）
+########################################
+if command -v eza >/dev/null 2>&1; then
+  alias ls='eza --group-directories-first'
+  alias l='eza --group-directories-first'
+  alias ll='eza -lh --group-directories-first'
+  alias la='eza -lah --group-directories-first'
+  alias lt='eza --tree --level=2 --group-directories-first'
+else
+  # macOS BSD ls 不支援 --color，使用 -G
+  alias ls='ls -G'
+fi

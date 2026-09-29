@@ -1,13 +1,15 @@
 #!/usr/bin/env bash
-# Ubuntu 機器人：Mac 代理設定與 Codex CLI。
+# Ubuntu 機器人：Mac 代理設定、zellij 與 Codex CLI。
 set -euo pipefail
 
+SCRIPT_DIR="$(cd -- "$(dirname -- "${BASH_SOURCE[0]}")" && pwd)"
 INSTALL_CODEX=1
+INSTALL_ZELLIJ=1
 case "${1:-}" in
-  --proxy-only) INSTALL_CODEX=0; shift ;;
+  --proxy-only) INSTALL_CODEX=0; INSTALL_ZELLIJ=0; shift ;;
   -h|--help)
     echo "用法：bash robot/install.sh [--proxy-only]"
-    echo "設定代理並安裝 Codex；--proxy-only 只設定及檢查代理。"
+    echo "設定代理並安裝 zellij 與 Codex；--proxy-only 只設定及檢查代理。"
     exit 0
     ;;
 esac
@@ -144,8 +146,11 @@ fi
 
 # 只載入剛產生的設定，避免執行既有 .bashrc 中的機器人啟動指令。
 . "$WORK_DIR/proxy.sh" >/dev/null
+# 載入設定會先關閉代理；安裝程序需明確開啟，新終端仍預設直連。
+proxy_on >/dev/null
+: "${http_proxy:?proxy_on 未設定 http_proxy}" "${https_proxy:?proxy_on 未設定 https_proxy}"
 
-# 安裝所需的套件與 Codex 均經由 Mac 下載。
+# 安裝所需的套件、zellij 與 Codex 均經由 Mac 下載。
 if ! command -v curl >/dev/null 2>&1 || [[ ! -s /etc/ssl/certs/ca-certificates.crt ]]; then
   SUDO=()
   if [[ $EUID -ne 0 ]]; then SUDO=(sudo); fi
@@ -160,6 +165,17 @@ if ! curl -fsSL --proxy "$https_proxy" --noproxy "" --connect-timeout 10 --max-t
   http://tinyproxy.stats/ -o "$WORK_DIR/proxy-stats.html"; then
   echo "代理設定已保存，但無法使用 Mac tinyproxy；請檢查接線、兩端 IP、Allow 和 Mac 防火牆。" >&2
   exit 1
+fi
+
+if [[ "$INSTALL_ZELLIJ" == 1 ]]; then
+  echo "==> 透過 Mac 代理安裝 zellij 並套用共用設定"
+  if [[ -f "$SCRIPT_DIR/../zellij/install.sh" ]]; then
+    bash "$SCRIPT_DIR/../zellij/install.sh"
+  else
+    curl -fsSL --retry 3 https://raw.githubusercontent.com/leimouhong/dotfiles/main/zellij/install.sh \
+      -o "$WORK_DIR/zellij-install.sh"
+    bash "$WORK_DIR/zellij-install.sh"
+  fi
 fi
 
 if [[ "$INSTALL_CODEX" == 1 ]]; then
@@ -178,6 +194,10 @@ printf '\n[完成] 設定已寫入 ~/.bashrc\n'
 echo "  載入：source ~/.bashrc"
 echo "  開啟：proxy_on"
 echo "  關閉：proxy_off"
+if [[ "$INSTALL_ZELLIJ" == 1 ]]; then
+  echo "  終端工作階段：zellij attach --create robot"
+  echo "  首次啟動會下載 autolock 外掛；如需 Mac 代理，先執行 proxy_on。"
+fi
 if [[ "$INSTALL_CODEX" == 1 ]]; then
   echo "  使用：codex"
 fi

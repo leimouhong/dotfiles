@@ -4,6 +4,22 @@ set -euo pipefail
 
 SCRIPT_DIR="$(cd -- "$(dirname -- "$0")" && pwd)"
 
+if [[ "$(uname -s)" != Darwin ]]; then
+  echo "此腳本僅供 macOS 使用。" >&2
+  exit 1
+fi
+
+# Homebrew 已安裝但尚未加入 PATH 時，直接載入既有安裝。
+if ! command -v brew >/dev/null 2>&1; then
+  for brew_bin in /opt/homebrew/bin/brew /usr/local/bin/brew; do
+    if [[ -x "$brew_bin" ]]; then
+      eval "$("$brew_bin" shellenv)"
+      break
+    fi
+  done
+  unset brew_bin
+fi
+
 ########################################
 # Homebrew
 ########################################
@@ -27,6 +43,11 @@ fi
 echo "==> 安裝套件"
 brew install \
   zinit \
+  bat \
+  btop \
+  dust \
+  git-delta \
+  uv \
   eza \
   fzf \
   fd \
@@ -35,9 +56,17 @@ brew install \
   fastfetch \
   ripgrep \
   neovim \
+  tree-sitter-cli \
   lazygit \
   zellij \
   tinyproxy
+
+# 只補上缺少的 Git 顯示設定，保留使用者已有的偏好。
+git config --global --get core.pager >/dev/null || git config --global core.pager delta
+git config --global --get interactive.diffFilter >/dev/null || git config --global interactive.diffFilter 'delta --color-only'
+git config --global --get delta.side-by-side >/dev/null || git config --global delta.side-by-side true
+git config --global --get delta.line-numbers >/dev/null || git config --global delta.line-numbers true
+git config --global --get delta.syntax-theme >/dev/null || git config --global delta.syntax-theme Dracula
 
 ########################################
 # 機器人 HTTP/HTTPS 代理
@@ -108,7 +137,7 @@ echo "==> 設定機器人使用的 tinyproxy"
 ########################################
 # NVM
 ########################################
-if [[ ! -d "$HOME/.nvm" ]]; then
+if [[ ! -s "$HOME/.nvm/nvm.sh" ]]; then
   echo "==> 安裝 NVM"
   curl -fsSL https://raw.githubusercontent.com/nvm-sh/nvm/v0.40.3/install.sh | bash
 else
@@ -116,7 +145,24 @@ else
 fi
 export NVM_DIR="$HOME/.nvm"
 [ -s "$NVM_DIR/nvm.sh" ] && \. "$NVM_DIR/nvm.sh"
-nvm install --lts
+# 重跑時沿用預設 Node，避免無意切換版本而遺失全域工具。
+if ! nvm use default; then
+  nvm install --lts
+fi
+
+########################################
+# uv / Neovim providers
+########################################
+if [[ -f "$SCRIPT_DIR/../scripts/install-common.sh" ]]; then
+  bash "$SCRIPT_DIR/../scripts/install-common.sh"
+else
+  (
+    PROVIDER_INSTALLER=$(mktemp)
+    trap 'rm -f "$PROVIDER_INSTALLER"' EXIT
+    curl -fsSL --retry 3 https://raw.githubusercontent.com/leimouhong/dotfiles/main/scripts/install-common.sh -o "$PROVIDER_INSTALLER"
+    bash "$PROVIDER_INSTALLER"
+  )
+fi
 
 ########################################
 # 套用 zellij 設定
