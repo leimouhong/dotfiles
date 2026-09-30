@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-# 清理 Mac、Ubuntu、Robot、zellij 與 LazyVim 安裝腳本產生的備份。
+# 清理 Mac、Ubuntu、Robot、Codex、zellij 與 LazyVim 安裝腳本產生的備份。
 set -euo pipefail
 
 CLEANUP_DRY_RUN=0
@@ -63,6 +63,20 @@ cleanup_nvim_backups() {
   done
 }
 
+cleanup_codex_backups() {
+  local config_dir="$1" backup suffix
+  local suffix_regex='^[0-9]{8}_[0-9]{6}\.[[:alnum:]]{6}$'
+
+  # Robot 安裝程式建立 backup.<時間戳>.<六位隨機字元>/config.toml。
+  for backup in "$config_dir"/backup.*; do
+    [[ -d "$backup" && ! -L "$backup" ]] || continue
+    suffix="${backup#"$config_dir/backup."}"
+    [[ "$suffix" =~ $suffix_regex ]] || continue
+    [[ -f "$backup/config.toml" || -L "$backup/config.toml" ]] || continue
+    remove_backup "$backup" -rf
+  done
+}
+
 main() {
   while [[ $# -gt 0 ]]; do
     case "$1" in
@@ -71,7 +85,8 @@ main() {
         cat <<'EOF'
 用法：bash scripts/clean-backups.sh [--dry-run]
 
-自動刪除 Mac、Ubuntu、Robot、zellij 與 LazyVim 安裝腳本產生的設定備份。
+自動刪除 Mac、Ubuntu、Robot、Codex、zellij 與 LazyVim 安裝腳本產生的設定備份。
+Codex 備份目錄使用 CODEX_HOME，未設定時使用 ~/.codex。
   --dry-run  只列出符合條件的備份，不刪除
   -h, --help 顯示說明
 EOF
@@ -89,6 +104,7 @@ EOF
   cleanup_file_backups /etc/keyd/default.conf
   cleanup_tinyproxy_backups
   cleanup_nvim_backups "${XDG_CONFIG_HOME:-$HOME/.config}"
+  cleanup_codex_backups "${CODEX_HOME:-$HOME/.codex}"
 
   if [[ "$CLEANUP_COUNT" == 0 ]]; then
     echo "沒有找到符合條件的備份。"

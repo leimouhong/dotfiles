@@ -70,7 +70,9 @@ bash <(curl -fsSL https://raw.githubusercontent.com/leimouhong/dotfiles/main/scr
 bash <(curl -fsSL https://raw.githubusercontent.com/leimouhong/dotfiles/main/scripts/clean-backups.sh)
 ```
 
-本機也可執行 `bash scripts/clean-backups.sh --dry-run`，移除 `--dry-run` 即刪除。新版 zellij 的 `backup.*` 目錄與 `/opt/neovim/` 舊版本目前不在清理範圍。
+本機也可執行 `bash scripts/clean-backups.sh --dry-run`，移除 `--dry-run` 即刪除。Codex 會清理 `~/.codex`（有設定 `CODEX_HOME` 時使用該目錄）下，名稱符合 `backup.<時間戳>.<六位隨機字元>` 且含 `config.toml` 的備份目錄；跳過以符號連結指向的備份目錄。
+
+新版 zellij 的 `backup.*` 目錄與 `/opt/neovim/` 舊版本目前不在清理範圍。
 
 ## 功能與快捷鍵
 
