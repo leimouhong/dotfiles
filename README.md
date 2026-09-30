@@ -36,6 +36,10 @@ source ~/.bashrc
 
 只設定代理：在安裝指令最後加 `--proxy-only`。安裝過程使用 Mac 代理，新終端預設關閉代理。
 
+完整安裝也會將 Codex 設定寫入 `~/.codex/config.toml`（有設定 `CODEX_HOME` 時使用該目錄），Codex 已安裝時仍會套用。既有設定若不同，會先備份至同目錄的 `backup.*` 資料夾，再以安裝範本整份替換。
+
+Codex 預設不詢問命令批准、允許完整檔案與網路存取、使用 `xhigh` 推理及即時網頁搜尋，文字日誌固定寫入 `/home/booster/.codex/log`；終端保留捲動歷史並關閉動畫。`xhigh` 需要目前使用的模型支援。
+
 ### 單獨安裝
 
 zellij（Mac／Ubuntu）：

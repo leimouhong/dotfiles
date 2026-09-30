@@ -57,7 +57,8 @@ if [[ "$listen_address" == "$client_address" ]]; then
 fi
 
 WORK_DIR=$(mktemp -d)
-trap 'rm -rf "$WORK_DIR"' EXIT
+CODEX_CONFIG_STAGE=""
+trap 'rm -rf "$WORK_DIR"; if [[ -n "$CODEX_CONFIG_STAGE" ]]; then rm -f "$CODEX_CONFIG_STAGE"; fi' EXIT
 
 # 代理設定直接寫入 .bashrc；範本只在安裝期間存放於暫存目錄。
 cat > "$WORK_DIR/proxy.template.sh" <<'PROXY_CONFIG'
@@ -188,6 +189,53 @@ if [[ "$INSTALL_CODEX" == 1 ]]; then
     echo "==> Codex 已安裝，跳過安裝"
   fi
   codex --version
+
+  echo "==> 套用 Codex 設定"
+  CODEX_CONFIG_DIR="${CODEX_HOME:-$HOME/.codex}"
+  # 全域設定必須在 [tui] 之前；內嵌範本也支援 bash <(curl ...) 安裝。
+  cat > "$WORK_DIR/codex-config.toml" <<'CODEX_CONFIG'
+# ===== 全域設定：必須放在所有 [xxx] 區段之前 =====
+
+# 不詢問命令執行批准
+approval_policy = "never"
+
+# 完整檔案及網絡存取權限
+sandbox_mode = "danger-full-access"
+
+# 推理強度：需要目前使用的模型支援 xhigh
+model_reasoning_effort = "xhigh"
+
+# 即時網頁搜尋
+web_search = "live"
+
+# 保存文字日誌，方便排查問題
+log_dir = "/home/booster/.codex/log"
+
+# ===== 終端介面設定 =====
+[tui]
+
+# 保留終端捲動歷史
+alternate_screen = "never"
+
+# 關閉介面動畫
+animations = false
+CODEX_CONFIG
+  mkdir -p "$CODEX_CONFIG_DIR"
+  if cmp -s "$WORK_DIR/codex-config.toml" "$CODEX_CONFIG_DIR/config.toml"; then
+    echo "   Codex 設定相同，保留現有檔案。"
+  else
+    # 先準備完整檔案，再備份及替換；不覆寫符號連結的目標。
+    CODEX_CONFIG_STAGE=$(mktemp "$CODEX_CONFIG_DIR/.config.toml.XXXXXX")
+    cat "$WORK_DIR/codex-config.toml" > "$CODEX_CONFIG_STAGE"
+    if [[ -e "$CODEX_CONFIG_DIR/config.toml" || -L "$CODEX_CONFIG_DIR/config.toml" ]]; then
+      BACKUP=$(mktemp -d "$CODEX_CONFIG_DIR/backup.$(date +%Y%m%d_%H%M%S).XXXXXX")
+      cp -P "$CODEX_CONFIG_DIR/config.toml" "$BACKUP/config.toml"
+      echo "   已備份原有 Codex 設定至 $BACKUP/config.toml"
+    fi
+    mv "$CODEX_CONFIG_STAGE" "$CODEX_CONFIG_DIR/config.toml"
+    CODEX_CONFIG_STAGE=""
+    echo "   已套用 Codex 設定至 $CODEX_CONFIG_DIR/config.toml"
+  fi
 fi
 
 printf '\n[完成] 設定已寫入 ~/.bashrc\n'
