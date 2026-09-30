@@ -102,6 +102,12 @@ case ":$PATH:" in
   *) export PATH="$HOME/.local/bin:$PATH" ;;
 esac
 
+# Codex 使用 Mac 代理並獨立啟動；代理設定只影響此子程序。
+codex() (
+  proxy_on >/dev/null
+  command codex --no-daemon "$@"
+)
+
 # ======================================================================
 # 【機器人代理設定：結束】
 # ======================================================================
@@ -180,7 +186,8 @@ if [[ "$INSTALL_ZELLIJ" == 1 ]]; then
 fi
 
 if [[ "$INSTALL_CODEX" == 1 ]]; then
-  if ! command -v codex >/dev/null 2>&1; then
+  # 只檢查 PATH 中的執行檔，避免將上面載入的 codex 函式誤判為已安裝。
+  if ! type -P codex >/dev/null 2>&1; then
     echo "==> 透過 Mac 代理下載並安裝 Codex CLI"
     curl -fsSL --connect-timeout 10 --max-time 120 \
       https://chatgpt.com/codex/install.sh -o "$WORK_DIR/codex-install.sh"
@@ -188,7 +195,7 @@ if [[ "$INSTALL_CODEX" == 1 ]]; then
   else
     echo "==> Codex 已安裝，跳過安裝"
   fi
-  codex --version
+  command codex --version
 
   echo "==> 套用 Codex 設定"
   CODEX_CONFIG_DIR="${CODEX_HOME:-$HOME/.codex}"
