@@ -19,8 +19,13 @@ if ! command -v uv >/dev/null 2>&1; then
 fi
 
 echo "==> uv 安裝 Python 3.12 與 pynvim"
-# 只提供 python3.12；保留系統 python3，避免影響 Ubuntu / ROS。
-uv python install 3.12
+# Mac 的使用者命令預設為 Python 3.12；Ubuntu / ROS 保留系統 python3。
+if [[ "$(uname -s)" == Darwin ]]; then
+  uv python install 3.12 --default
+  uv python pin --global 3.12
+else
+  uv python install 3.12
+fi
 PYTHON=$(uv python find --managed-python 3.12)
 PIPX_PYNVIM=0
 if command -v pipx >/dev/null 2>&1; then

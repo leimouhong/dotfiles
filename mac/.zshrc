@@ -244,21 +244,9 @@ bindkey -M emacs '^[[1;3D' backward-word
 bindkey -M emacs '^[[1;3C' forward-word
 
 ########################################
-# 10. Conda（懶載入，大幅加速啟動）
+# 10. Python（uv 管理，專案版本由 .python-version 決定）
 ########################################
-conda() {
-  unfunction conda
-  __conda_setup="$('/opt/anaconda3/bin/conda' 'shell.zsh' 'hook' 2>/dev/null)"
-  if [ $? -eq 0 ]; then
-    eval "$__conda_setup"
-  elif [ -f "/opt/anaconda3/etc/profile.d/conda.sh" ]; then
-    . "/opt/anaconda3/etc/profile.d/conda.sh"
-  else
-    export PATH="/opt/anaconda3/bin:$PATH"
-  fi
-  unset __conda_setup
-  conda "$@"
-}
+export UV_MANAGED_PYTHON=1
 
 ########################################
 # 11. NVM（懶載入，大幅加速啟動）

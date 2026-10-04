@@ -11,7 +11,7 @@ bash <(curl -fsSL https://raw.githubusercontent.com/leimouhong/dotfiles/main/mac
 source ~/.zshrc
 ```
 
-安裝時會詢問 Mac／機器人 IP、啟動 tinyproxy，最後啟用 Tailscale 並登入。既有 `.zshrc` 會先備份。
+安裝時會詢問 Mac／機器人 IP、啟動 tinyproxy，最後啟用 Tailscale 並登入。既有 `.zshrc` 與 `.zprofile` 會先備份。
 
 ### Ubuntu
 
@@ -86,14 +86,21 @@ bash <(curl -fsSL https://raw.githubusercontent.com/leimouhong/dotfiles/main/scr
 | [Ubuntu](ubuntu/.bashrc) | Bash／ble.sh、LazyVim、zellij、uv、VS Code、SSH、C/C++ 工具；22.04 加裝 ROS 2 Humble |
 | [Robot](robot/install.sh) | Mac 代理、zellij、Codex；保留原有 `.bashrc`、ROS 與廠商設定 |
 
-Mac／Ubuntu 的 Python 3.12 與 pynvim 使用 uv，Node 使用 nvm；系統 Python 與 ROS 依賴繼續由系統管理。NumPy／OpenCV 按專案安裝：
+Mac／Ubuntu 的 Python 3.12 與 pynvim 使用 uv，Node 使用 nvm。Mac 的 `python`、`python3` 預設指向 uv 管理的 Python 3.12，登入 shell 會優先使用 `~/.local/bin`，不再載入 Conda；Ubuntu 的系統 Python 與 ROS 依賴繼續由系統管理。安裝腳本不會自行卸載既有 Anaconda。
+
+專案各自保存 `.python-version`、`pyproject.toml` 與 `uv.lock`，`.venv` 不提交到 Git。NumPy／OpenCV 按專案安裝：
 
 ```bash
 uv init --python 3.12 my-project
 cd my-project
+uv python pin 3.12
 uv add numpy opencv-python
 uv run python
 ```
+
+已有 `requirements.txt` 的專案可用 `uv add -r requirements.txt` 匯入依賴；已有鎖定版本時加入 `-c requirements.lock` 作為約束。重建環境使用 `uv sync --locked`，執行測試使用 `uv run python -m pytest`。Python 版本由專案的 `.python-version` 優先決定，Mac 的全域預設為 3.12。
+
+Notebook 專案加入 `uv add --dev ipykernel`，在 VS Code 選擇專案的 `.venv/bin/python`。需要 JupyterLab 時加入 `uv add --dev jupyterlab`，以 `uv run jupyter lab` 啟動。
 
 ### Mac／Ubuntu 終端
 

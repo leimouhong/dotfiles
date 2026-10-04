@@ -180,6 +180,19 @@ else
 fi
 
 ########################################
+# 套用登入 shell 設定
+########################################
+echo "==> 套用 .zprofile"
+if [[ -f "$HOME/.zprofile" ]]; then
+  cp "$HOME/.zprofile" "$HOME/.zprofile.backup.$(date +%Y%m%d_%H%M%S)"
+fi
+if [[ -f "$SCRIPT_DIR/.zprofile" ]]; then
+  cp "$SCRIPT_DIR/.zprofile" "$HOME/.zprofile"
+else
+  curl -fsSL https://raw.githubusercontent.com/leimouhong/dotfiles/main/mac/.zprofile -o "$HOME/.zprofile"
+fi
+
+########################################
 # 套用 .zshrc
 ########################################
 echo "==> 套用 .zshrc"
