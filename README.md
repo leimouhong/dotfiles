@@ -130,6 +130,8 @@ Mac 的 Option 需設為 Alt／Meta，也可先按 `Esc` 再按 `x`／`c`。
 
 Ubuntu 完整安裝會套用[個人設定](ubuntu/nvim/config)；Mac 沿用原有 Neovim 設定，Robot 不會安裝 LazyVim。首次啟動後執行 `:Lazy restore`、`:checkhealth`。
 
+補全清單不會自動選中第一項或插入候選文字。插入模式下按 `Tab` 接受補全（未選擇時採用第一項），按 `Enter` 換行；可用 `↑`／`↓` 或 `Ctrl+p`／`Ctrl+n` 選擇候選。沒有補全時，`Tab` 會跳至下一個 snippet 欄位或執行原本的縮排。
+
 | 快捷鍵（一般模式） | 功能 |
 | --- | --- |
 | `Space Space`／`Space /` | 搜尋檔案／專案文字 |
