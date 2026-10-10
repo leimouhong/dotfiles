@@ -26,13 +26,15 @@ bash <(curl -fsSL https://raw.githubusercontent.com/leimouhong/dotfiles/main/ubu
 
 | Ubuntu 安裝內容 | 電腦 | 機器人 |
 | --- | --- | --- |
-| mouhong、ble.sh、fzf、eza、zoxide、Zellij、Codex CLI、LazyVim | ✓ | ✓ |
+| mouhong、ble.sh、fzf、eza、zoxide、Zellij、Codex CLI、Claude Code、LazyVim | ✓ | ✓ |
 | Git／C/C++ 工具、nvm、uv Python 3.12／Neovim provider | ✓ | ✓ |
 | 系統 Python／OpenCV 開發套件、VS Code、Fcitx5 拼音 | ✓ | 不安裝 |
 | ROS 2 Humble | 僅 22.04 | 不安裝／不自動載入 |
-| keyd | 安裝程式，映射手動啟用 | 不安裝 |
+| keyd | 安裝、套用映射並開機自啟 | 不安裝 |
 
 機器人保留原有系統 Python、ROS 及廠商設定；個人工具的 Python 由 uv 獨立管理。Mac 使用 Zsh，會備份並更新 `.zshrc`／`.zprofile`，以 uv 設定使用者預設 Python 3.12，最後啟用 Tailscale。
+
+Mac 與兩種 Ubuntu 模式都會安裝 Claude Code，採用[官方原生安裝方式](https://code.claude.com/docs/en/setup)；已有安裝時保留原版本、設定及登入資料。執行 `claude`，首次使用依提示登入。
 
 ## Ubuntu 日常使用
 
@@ -41,14 +43,15 @@ mouhong   # 進入個人 Bash
 nvim      # 個人 LazyVim
 zellij    # 個人 Zellij
 codex     # 首次使用依提示登入
+claude    # Claude Code，首次使用依提示登入
 exit      # 返回原本 Shell
 ```
 
-SSH 登入及一般終端不會自動啟用個人環境。`exit` 還原原本 Shell 的環境；套件、輸入法及 Tailscale 獨立運作。在 Zellij 內 `exit` 只關閉窗格，離開 Zellij 後再退出個人 Shell。
+SSH 登入及一般終端不會自動啟用個人環境。`exit` 還原原本 Shell 的環境；套件、輸入法、keyd 及 Tailscale 獨立運作。在 Zellij 內 `exit` 只關閉窗格，離開 Zellij 後再退出個人 Shell。
 
 個人設定位於 `~/.config/mouhong/`，Neovim 位於 `~/.config/nvim-mouhong/`（支援自訂 XDG 目錄）；原有 Bash、Neovim、Zellij 及 Codex 設定會保留。舊版升級會備份並遷移可辨識的個人 Bash／robot 代理區塊；完成後重新開啟終端或 SSH。
 
-電腦安裝 Fcitx5 後，**登出圖形桌面再登入**；`Ctrl+Space` 切換輸入法，`fcitx5-configtool` 管理拼音。keyd 映射需手動部署 [default.conf](ubuntu/keyd/default.conf) 至 `/etc/keyd/default.conf` 並啟用服務。
+電腦安裝 Fcitx5 後，**登出圖形桌面再登入**；`Ctrl+Space` 切換輸入法，`fcitx5-configtool` 管理拼音。keyd 會備份並部署 [default.conf](ubuntu/keyd/default.conf)，立即啟用並設定開機自啟；按住 `Tab` 配合 `h/j/k/l` 輸入方向鍵，單按仍是 Tab。
 
 ## Tailscale
 

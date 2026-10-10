@@ -133,7 +133,7 @@ EOF
   if [[ ${XDG_CONFIG_HOME:-$HOME/.config} != "$HOME/.config" ]]; then
     cleanup_personal_backups "$HOME/.config"
   fi
-  cleanup_file_backups /etc/keyd/default.conf
+  cleanup_file_backups /etc/keyd/default.conf '^[0-9]{8}_[0-9]{6}(\.[[:alnum:]]{6})?$'
   cleanup_tinyproxy_backups
   cleanup_config_directory_backups "${CODEX_HOME:-$HOME/.codex}" config.toml
 

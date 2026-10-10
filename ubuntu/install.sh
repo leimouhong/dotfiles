@@ -137,6 +137,21 @@ animations = false
 EOF
 )
 
+install_claude_code() (
+  set -euo pipefail
+  export PATH="$HOME/.local/bin:$PATH"
+  if ! type -P claude >/dev/null 2>&1; then
+    local stage
+    stage=$(mktemp -d)
+    trap 'rm -rf "$stage"' EXIT
+    curl -fsSL --retry 3 https://claude.ai/install.sh -o "$stage/install.sh"
+    bash "$stage/install.sh"
+  else
+    echo "   保留既有 Claude Code 安裝、設定及登入資料。"
+  fi
+  command claude --version
+)
+
 # 以函式分段，整個 Ubuntu 安裝只有這個主入口。
 # 子 Shell 讓暫存目錄與 trap 不會影響主安裝流程。
 install_personal_environment() (
@@ -434,9 +449,24 @@ if [[ "$INSTALL_PROFILE" == computer ]]; then
   rm -rf "$KEYD_SRC"
   unset KEYD_SRC KEYD_TAG
 
-  # keyd 是整台電腦的鍵盤服務，無法隨子 Shell 的 exit 還原。
-  # 僅安裝程式，不覆寫 /etc/keyd/default.conf，也不自動啟用服務。
-  echo "   keyd 已安裝；需要 Tab + hjkl 時可依 README 手動啟用。"
+  echo "==> 套用 keyd 映射並啟用服務"
+  sudo install -d -m 0755 /etc/keyd
+  if ! sudo cmp -s "$SCRIPT_DIR/keyd/default.conf" /etc/keyd/default.conf; then
+    if sudo test -e /etc/keyd/default.conf || sudo test -L /etc/keyd/default.conf; then
+      KEYD_BACKUP=$(sudo mktemp "/etc/keyd/default.conf.backup.$(date +%Y%m%d_%H%M%S).XXXXXX")
+      sudo cp -P /etc/keyd/default.conf "$KEYD_BACKUP"
+      echo "   已備份原有 keyd 設定至 $KEYD_BACKUP"
+      unset KEYD_BACKUP
+    fi
+    # 先準備新檔，再替換目的檔；原設定若為符號連結，不改動其來源。
+    sudo install -m 0644 "$SCRIPT_DIR/keyd/default.conf" "$WORK_DIR/keyd-default.conf"
+    sudo mv -f "$WORK_DIR/keyd-default.conf" /etc/keyd/default.conf
+  fi
+  sudo systemctl daemon-reload
+  sudo systemctl enable keyd
+  sudo systemctl restart keyd
+  sudo systemctl is-active --quiet keyd
+  echo "   keyd 已啟用並設定開機自啟；Tab + hjkl 映射在 exit 後仍有效。"
 fi
 
 echo "==> 安裝 Neovim（官方 tarball，無需 FUSE，$DPKG_ARCH）"
@@ -536,6 +566,9 @@ install_personal_environment
 
 echo "==> 安裝 Codex CLI"
 install_codex
+
+echo "==> 安裝 Claude Code"
+install_claude_code
 
 # 兩種模式都在全部工具部署後才詢問；不提供本機 exit node 宣告功能。
 configure_tailscale

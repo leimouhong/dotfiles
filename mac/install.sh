@@ -142,6 +142,24 @@ LUA
 )
 
 ########################################
+# Claude Code
+########################################
+echo "==> 安裝 Claude Code"
+(
+  set -euo pipefail
+  export PATH="$HOME/.local/bin:$PATH"
+  if ! type -P claude >/dev/null 2>&1; then
+    WORK_DIR=$(mktemp -d)
+    trap 'rm -rf "$WORK_DIR"' EXIT
+    curl -fsSL --retry 3 https://claude.ai/install.sh -o "$WORK_DIR/install.sh"
+    bash "$WORK_DIR/install.sh"
+  else
+    echo "   保留既有 Claude Code 安裝、設定及登入資料。"
+  fi
+  command claude --version
+)
+
+########################################
 # 套用 zellij 設定
 ########################################
 echo "==> 套用 zellij 設定"
