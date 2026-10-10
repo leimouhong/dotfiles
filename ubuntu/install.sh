@@ -141,11 +141,9 @@ install_claude_code() (
   set -euo pipefail
   export PATH="$HOME/.local/bin:$PATH"
   if ! type -P claude >/dev/null 2>&1; then
-    local stage
-    stage=$(mktemp -d)
-    trap 'rm -rf "$stage"' EXIT
-    curl -fsSL --retry 3 https://claude.ai/install.sh -o "$stage/install.sh"
-    bash "$stage/install.sh"
+    # 使用已載入的 nvm / npm；不把 claude.ai 可能回傳的 HTML 當腳本執行。
+    # 原生執行檔由各平台的 optional dependency 提供。
+    npm install --global --include=optional @anthropic-ai/claude-code@latest || return 1
   else
     echo "   保留既有 Claude Code 安裝、設定及登入資料。"
   fi
@@ -568,13 +566,26 @@ echo "==> 安裝 Codex CLI"
 install_codex
 
 echo "==> 安裝 Claude Code"
-install_claude_code
+CLAUDE_CODE_FAILED=0
+if ! install_claude_code; then
+  CLAUDE_CODE_FAILED=1
+  echo "⚠ Claude Code 安裝或版本驗證失敗，先繼續設定 Tailscale。" >&2
+fi
 
 # 兩種模式都在全部工具部署後才詢問；不提供本機 exit node 宣告功能。
 configure_tailscale
 
-echo "✅ 安裝完成（$INSTALL_PROFILE）！執行 mouhong 啟用，exit 返回原本 Shell。"
+if [[ "$CLAUDE_CODE_FAILED" == 1 ]]; then
+  echo "⚠ 其餘設定已完成（${INSTALL_PROFILE}），Claude Code 仍未安裝或驗證成功。" >&2
+else
+  echo "✅ 安裝完成（${INSTALL_PROFILE}）！"
+fi
+echo "   執行 mouhong 啟用，exit 返回原本 Shell。"
 echo "   SSH 登入不會自動啟用；舊版使用者請重新開啟終端／SSH 連線。"
 if [[ "$INSTALL_PROFILE" == computer ]]; then
   echo "   Fcitx5 請登出圖形桌面後重新登入。"
+fi
+if [[ "$CLAUDE_CODE_FAILED" == 1 ]]; then
+  echo "   可在 mouhong 中重試：npm install --global --include=optional @anthropic-ai/claude-code@latest && claude --version" >&2
+  exit 1
 fi

@@ -34,7 +34,9 @@ bash <(curl -fsSL https://raw.githubusercontent.com/leimouhong/dotfiles/main/ubu
 
 機器人保留原有系統 Python、ROS 及廠商設定；個人工具的 Python 由 uv 獨立管理。Mac 使用 Zsh，會備份並更新 `.zshrc`／`.zprofile`，以 uv 設定使用者預設 Python 3.12，最後啟用 Tailscale。
 
-Mac 與兩種 Ubuntu 模式都會安裝 Claude Code，採用[官方原生安裝方式](https://code.claude.com/docs/en/setup)；已有安裝時保留原版本、設定及登入資料。執行 `claude`，首次使用依提示登入。
+Claude Code 採用[官方支援的安裝方式](https://code.claude.com/docs/en/setup)：Mac 用 Homebrew，兩種 Ubuntu 模式用 npm。保留既有安裝、設定及登入資料；執行 `claude`，首次使用依提示登入。
+
+Claude 安裝失敗時會繼續其餘設定及 Tailscale 步驟，最後顯示重試指令並回報失敗。安裝成功不代表服務可用，仍受 Anthropic 地區及帳號限制。
 
 ## Ubuntu 日常使用
 

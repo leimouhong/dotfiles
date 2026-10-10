@@ -145,19 +145,21 @@ LUA
 # Claude Code
 ########################################
 echo "==> 安裝 Claude Code"
-(
+CLAUDE_CODE_FAILED=0
+if ! (
   set -euo pipefail
   export PATH="$HOME/.local/bin:$PATH"
   if ! type -P claude >/dev/null 2>&1; then
-    WORK_DIR=$(mktemp -d)
-    trap 'rm -rf "$WORK_DIR"' EXIT
-    curl -fsSL --retry 3 https://claude.ai/install.sh -o "$WORK_DIR/install.sh"
-    bash "$WORK_DIR/install.sh"
+    # 官方支援 Homebrew 安裝，無需執行 claude.ai 回傳的安裝腳本。
+    brew install --cask claude-code || exit 1
   else
     echo "   保留既有 Claude Code 安裝、設定及登入資料。"
   fi
   command claude --version
-)
+); then
+  CLAUDE_CODE_FAILED=1
+  echo "⚠ Claude Code 安裝或版本驗證失敗，先繼續其餘設定。" >&2
+fi
 
 ########################################
 # 套用 zellij 設定
@@ -235,4 +237,9 @@ fi
 unset TAILSCALE_APP TAILSCALE_CMD
 
 echo ""
+if [[ "$CLAUDE_CODE_FAILED" == 1 ]]; then
+  echo "⚠ 其餘設定已完成，Claude Code 仍未安裝或驗證成功。" >&2
+  echo "   執行 source ~/.zshrc 載入設定；可重試：brew install --cask claude-code && claude --version" >&2
+  exit 1
+fi
 echo "✅ 完成！執行 source ~/.zshrc 生效"
