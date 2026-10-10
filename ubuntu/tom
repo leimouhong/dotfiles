@@ -26,7 +26,7 @@ export ZELLIJ_CONFIG_DIR="$TOM_CONFIG_DIR/zellij"
 export ZELLIJ_CONFIG_FILE="$ZELLIJ_CONFIG_DIR/config.kdl"
 export SHELL=/bin/bash
 
-# 不讀 ~/.profile、~/.bash_profile 或 ~/.bashrc，也不透過 BASH_ENV 載入設定。
+# 不讀登入設定或 BASH_ENV；由個人 bashrc 明確載入原有 ~/.bashrc。
 unset BASH_ENV ENV
 if [[ $# -eq 0 ]]; then
   set -- -i

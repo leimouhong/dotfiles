@@ -51,9 +51,17 @@ exit      # 返回原本 Shell
 
 SSH 登入及一般終端不會自動啟用個人環境。`exit` 還原原本 Shell 的環境；套件、輸入法、keyd 及 Tailscale 獨立運作。在 Zellij 內 `exit` 只關閉窗格，離開 Zellij 後再退出個人 Shell。
 
-個人設定位於 `~/.config/tom/`，Neovim 位於 `~/.config/nvim-tom/`，歷史檔為 `~/.local/state/tom/bash_history`（支援自訂 XDG 目錄）。原有 Bash、Neovim、Zellij 及 Codex 設定會保留。
+個人設定位於 `~/.config/tom/`，Neovim 位於 `~/.config/nvim-tom/`（支援自訂 XDG 目錄）。原有 Bash、Neovim、Zellij 及 Codex 設定會保留。
 
-升級會搬移舊個人設定、歷史及 Neovim 資料，並移除舊指令入口；新舊目錄同時存在時會停止，避免覆蓋。每個使用者需先退出舊個人 Shell／Zellij，再各自升級；完成後重新開啟終端或 SSH，再執行 `tom`。
+電腦和機器人的 `tom` 都先載入原本 `~/.bashrc`，再套用 `~/.config/tom/bashrc` 的個人設定。原有 ROS 設定、alias 及函式會保留，同名項目以 `tom` 為準。原本的啟動指令會再執行一次；機器人仍會清除代理環境變數。
+
+`tom` 保留原本 PATH 的順序，沿用 Python 虛擬環境／Conda 和目前 Node／nvm，不強制切換最新 Node；尚無 Node 時才使用 nvm 的 `default`。已有 ROS／工作空間時不再載入 Humble；只有電腦模式在未載入 ROS 時補上已安裝的 Humble。原本 `.bashrc` 自己的環境切換指令仍會執行。
+
+命令歷史預設共用 `~/.bash_history`，也會沿用已匯出或原本 `~/.bashrc` 設定的 `HISTFILE`。進入前可執行 `history -a; tom`，讓尚未存檔的命令也能讀取；另一個已開啟的 Bash 可用 `history -a; history -n` 同步。
+
+`tom` 內使用個人歷史規則，`exit` 後回到原本 Bash 的規則；已寫入共用歷史檔的紀錄仍會保留。
+
+升級會搬移舊個人設定及 Neovim 資料、移除舊指令入口，並刪除獨立的 `~/.local/state/tom/bash_history`（支援自訂 XDG 目錄，不合併舊歷史）。新舊目錄同時存在時會停止，避免覆蓋。每個使用者需先退出舊個人 Shell／Zellij，再各自升級；完成後重新開啟終端或 SSH，再執行 `tom`。
 
 電腦安裝 Fcitx5 後，**登出圖形桌面再登入**；`Ctrl+Space` 切換輸入法，`fcitx5-configtool` 管理拼音。keyd 會備份並部署 [default.conf](ubuntu/keyd/default.conf)，立即啟用並設定開機自啟；按住 `Tab` 配合 `h/j/k/l` 輸入方向鍵，單按仍是 Tab。
 

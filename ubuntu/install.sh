@@ -164,7 +164,7 @@ install_personal_environment() (
   cp "$SCRIPT_DIR/tom" "$WORK_DIR/tom"
   cp "$SCRIPT_DIR/../zellij/config.kdl" "$WORK_DIR/config.kdl"
   printf '%s\n' "${INSTALL_PROFILE:-computer}" > "$WORK_DIR/profile"
-  # Zellij 每個新窗格都從入口載入個人 Bash，不會回到原有 ~/.bashrc。
+  # Zellij 每個新窗格都從入口載入個人 Bash，並載入原有 ~/.bashrc。
   printf '\n// Ubuntu 個人環境的新窗格\ndefault_shell "/usr/local/bin/tom"\n' >> "$WORK_DIR/config.kdl"
   bash -n "$WORK_DIR/bashrc"
   bash -n "$WORK_DIR/tom"
@@ -190,6 +190,8 @@ install_personal_environment() (
   # /usr/local/bin 在 Ubuntu 的預設 PATH 中，新 SSH 連線不用修改啟動檔。
   sudo install -m 0755 "$WORK_DIR/tom" /usr/local/bin/tom
   sudo rm -f /usr/local/bin/mouhong
+  # 新設定已改用共用歷史，刪除舊的獨立歷史檔；不合併進 ~/.bash_history。
+  rm -f -- "${XDG_STATE_HOME:-$HOME/.local/state}/tom/bash_history"
   echo "✅ 個人環境已安裝。執行 tom 啟用，exit 返回原本 Shell。"
 )
 

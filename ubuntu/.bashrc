@@ -5,9 +5,28 @@
 # 此檔只由 tom --rcfile 載入；不覆寫使用者的 ~/.bashrc。
 [[ ${TOM_ACTIVE:-} == 1 ]] || return
 
-export PATH="$HOME/.local/bin:/usr/local/bin:$PATH"
-# ble.sh 在互動設定之前載入（--noattach 模式）。
-if [[ -r "$HOME/.local/share/blesh/ble.sh" ]]; then
+# 先載入原有設定，保留 ROS、alias、函式及未匯出的變數。
+# TOM_ACTIVE 已由入口設定，可供原有 bashrc 的自動啟動判斷避免再次執行 tom。
+[[ ! -r "$HOME/.bashrc" ]] || source "$HOME/.bashrc"
+if [[ ${TOM_PROFILE:-computer} == robot ]]; then
+  # 原有 bashrc 可能重新設定代理；機器人仍透過 Tailscale 連網。
+  unset http_proxy https_proxy HTTP_PROXY HTTPS_PROXY all_proxy ALL_PROXY no_proxy NO_PROXY
+fi
+
+# 保留既有 Python / Conda / Node / ROS 的搜尋順序，只補上缺少的工具目錄。
+__dotfiles_path_append() {
+  [[ -d "$1" ]] || return 0
+  case ":$PATH:" in
+    *":$1:"*) ;;
+    *) PATH="${PATH:+$PATH:}$1" ;;
+  esac
+}
+__dotfiles_path_append "$HOME/.local/bin"
+__dotfiles_path_append /usr/local/bin
+export PATH
+unset -f __dotfiles_path_append
+# 原有 bashrc 若已載入 ble.sh，就沿用；否則使用 --noattach 模式載入。
+if ! declare -F ble-attach >/dev/null 2>&1 && [[ -r "$HOME/.local/share/blesh/ble.sh" ]]; then
   source "$HOME/.local/share/blesh/ble.sh" --noattach
 fi
 
@@ -23,8 +42,8 @@ fi
 ########################################
 # 1. History
 ########################################
-mkdir -p "${XDG_STATE_HOME:-$HOME/.local/state}/tom"
-HISTFILE="${XDG_STATE_HOME:-$HOME/.local/state}/tom/bash_history"
+# 和原本 Bash 共用歷史，沿用父 Shell 匯出或原有 bashrc 設定的 HISTFILE。
+HISTFILE="${HISTFILE:-$HOME/.bash_history}"
 HISTSIZE=100000
 HISTFILESIZE=100000
 HISTCONTROL=ignoredups
@@ -119,7 +138,7 @@ __dotfiles_history_nav_reset() {
   __dotfiles_history_nav_current=
 }
 
-# ble.sh 直接搜尋記憶體中的 history，避免每按一次方向鍵都重讀整份個人 history。
+# ble.sh 直接搜尋記憶體中的 history，避免每按一次方向鍵都重讀整份歷史檔。
 __dotfiles_ble_history_bindings() {
   ble-bind -f up history-substring-search-backward
   ble-bind -f down history-substring-search-forward
@@ -151,7 +170,7 @@ elif command -v fzf >/dev/null 2>&1; then
   bind -m emacs -x '"\ec": __fzf_cd__' 2>/dev/null
   bind -m vi-insert -x '"\ec": __fzf_cd__' 2>/dev/null
 
-  # Ctrl-R 歷史搜尋：直接逐行讀取個人 HISTFILE
+  # Ctrl-R 歷史搜尋：直接逐行讀取共用 HISTFILE
   bind -m emacs -x '"\C-r": __dotfiles_fzf_history_widget' 2>/dev/null
   bind -m vi-insert -x '"\C-r": __dotfiles_fzf_history_widget' 2>/dev/null
 
@@ -167,33 +186,8 @@ elif command -v fzf >/dev/null 2>&1; then
 fi
 
 ########################################
-# 4. 環境變數（PATH 須在 zoxide 之前）
+# 4. 環境變數
 ########################################
-__dotfiles_path_prepend() {
-  [[ -d "$1" ]] || return 0
-  case ":$PATH:" in
-    *":$1:"*) ;;
-    *) PATH="$1${PATH:+:$PATH}" ;;
-  esac
-}
-
-__dotfiles_path_dedupe() {
-  local old_ifs="$IFS"
-  local entry new_path=""
-  IFS=:
-  for entry in $PATH; do
-    [[ -n "$entry" ]] || continue
-    case ":$new_path:" in
-      *":$entry:"*) ;;
-      *) new_path="${new_path:+$new_path:}$entry" ;;
-    esac
-  done
-  IFS="$old_ifs"
-  PATH="$new_path"
-}
-
-__dotfiles_path_prepend "$HOME/.local/bin"
-export PATH
 export EDITOR="nvim"
 export LESS='-R'
 PS1='[tom] \u@\h:\w\$ '
@@ -215,9 +209,12 @@ if command -v delta >/dev/null 2>&1; then
 fi
 
 ########################################
-# 5. ROS 2 Humble
+# 5. ROS（優先沿用既有發行版與工作空間）
 ########################################
-if [[ ${TOM_PROFILE:-computer} == computer && -f /opt/ros/humble/setup.bash ]]; then
+if [[ ${TOM_PROFILE:-computer} == computer &&
+      -z ${ROS_DISTRO:-} && -z ${ROS_VERSION:-} &&
+      -z ${AMENT_PREFIX_PATH:-} && -z ${COLCON_PREFIX_PATH:-} &&
+      -z ${ROS_PACKAGE_PATH:-} && -f /opt/ros/humble/setup.bash ]]; then
   source /opt/ros/humble/setup.bash
 fi
 
@@ -249,30 +246,24 @@ fi
 ########################################
 # 7. nvm（Node 版本管理）
 ########################################
-export NVM_DIR="$HOME/.nvm"
+export NVM_DIR="${NVM_DIR:-$HOME/.nvm}"
 
-# 懶載入 wrapper：首次呼叫時才真正載入 nvm
-_load_nvm() {
-  unset -f nvm node npm npx
-  [ -s "$NVM_DIR/nvm.sh" ] && \. "$NVM_DIR/nvm.sh"
-  [ -s "$NVM_DIR/bash_completion" ] && \. "$NVM_DIR/bash_completion"
-}
-nvm()  { _load_nvm; nvm "$@"; }
-node() { _load_nvm; node "$@"; }
-npm()  { _load_nvm; npm "$@"; }
-npx()  { _load_nvm; npx "$@"; }
-
-# 預先將最新版本的 node bin 加入 PATH，確保即使 nvm 尚未載入也能找到 node
-if [[ -d "$NVM_DIR/versions/node" ]]; then
-  # sort -V 以版本序取最新，避免字典序把 v8 當成比 v18/v20 新
-  _nvm_default_bin=$(printf '%s\n' "$NVM_DIR"/versions/node/*/bin | sort -V | tail -n1)
-  __dotfiles_path_prepend "$_nvm_default_bin"
-  unset _nvm_default_bin
+# 原有 bashrc 已載入 nvm 時直接沿用，不替換 node / npm / npx。
+if ! declare -F nvm >/dev/null 2>&1 && [[ -s "$NVM_DIR/nvm.sh" ]]; then
+  if command -v node >/dev/null 2>&1; then
+    # 已有 Node：只在呼叫 nvm 時載入管理工具，不自動切換版本。
+    nvm() {
+      unset -f nvm
+      source "$NVM_DIR/nvm.sh" --no-use || return
+      [[ ! -s "$NVM_DIR/bash_completion" ]] || source "$NVM_DIR/bash_completion"
+      nvm "$@"
+    }
+  else
+    # 尚無 Node：使用使用者的 default 別名，不再挑選最新安裝版本。
+    source "$NVM_DIR/nvm.sh" --no-use
+    nvm use --silent default
+  fi
 fi
-
-__dotfiles_path_dedupe
-export PATH
-unset -f __dotfiles_path_prepend __dotfiles_path_dedupe
 
 ########################################
 # 8. ble.sh attach（必須在最底端）
