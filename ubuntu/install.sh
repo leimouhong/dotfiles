@@ -39,7 +39,7 @@ select_profile() {
       return 1
     fi
     local answer
-    read -r -p "安裝到 1) 電腦  2) 機器人？[1] " answer
+    read -r -p "安裝到 1) 電腦  2) 機器人？（Enter 預設選電腦）：" answer
     case "${answer:-1}" in
       1|computer) INSTALL_PROFILE=computer ;;
       2|robot) INSTALL_PROFILE=robot ;;

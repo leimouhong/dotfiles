@@ -52,7 +52,7 @@ SSH 登入及一般終端不會自動啟用個人環境。`exit` 還原原本 Sh
 
 ## Tailscale
 
-Ubuntu 安裝最後會詢問是否啟用 Tailscale，以及是否選用 Hetzner **`100.78.131.72`** 作為 exit node。兩項預設皆否；略過會保留現有設定。
+Ubuntu 安裝最後會詢問是否啟用 Tailscale，以及是否選用 **`hetzner`（`100.78.131.72`）** 作為 exit node。兩項預設皆否；略過會保留現有設定。
 
 - **電腦**：選擇啟用後設定開機自啟。
 - **機器人**：選擇啟用後只啟動本次，取消開機自啟；保留 DNS、不接受其他設備的子網路路由。
@@ -74,7 +74,17 @@ sudo systemctl stop tailscaled
 
 `--accept-dns=false`、`--accept-routes=false`、exit node 及 `--exit-node-allow-lan-access=true` 設定會保存，停止服務或重開機後不用重設。連線後可用 `tailscale status` 查看狀態。
 
-機器人平時停止背景服務，以減少虛擬網路介面對 ROS 2／DDS 的影響；不採用背景服務自啟後再 `down`。`mouhong`／`exit` 不會切換 Tailscale。曾用舊版設定自啟的機器人，可執行 `sudo systemctl disable tailscaled` 取消自啟。
+安裝時選用 Hetzner 已設定允許本地 LAN。Tailscale 已連線時，只需切換出口，LAN／DNS／子網路路由偏好都會保留：
+
+```bash
+# 關閉 exit node，恢復使用本機網路出口
+sudo tailscale set --exit-node=
+
+# 開啟 Hetzner exit node
+sudo tailscale set --exit-node=hetzner
+```
+
+機器人平時停止背景服務，以減少虛擬網路介面對 ROS 2／DDS 的影響；不採用背景服務自啟後再 `down`。`mouhong`／`exit` 不會切換 Tailscale。
 
 ## 清理備份
 
