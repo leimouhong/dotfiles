@@ -3,13 +3,13 @@
 set -euo pipefail
 
 if [[ "$(uname -s)" != "Linux" ]]; then
-  echo "此腳本供 Ubuntu 部署使用，請在 Ubuntu 執行；macOS 的 Neovim 設定由移轉輔助程式搬移。" >&2
+  echo "此腳本僅供 Ubuntu 部署使用；macOS 保留原有 Neovim 設定。" >&2
   exit 1
 fi
 
 SCRIPT_DIR="$(cd -- "$(dirname -- "${BASH_SOURCE[0]}")" && pwd)"
 CONFIG_HOME="${XDG_CONFIG_HOME:-$HOME/.config}"
-CONFIG_DIR="$CONFIG_HOME/nvim"
+CONFIG_DIR="$CONFIG_HOME/nvim-mouhong"
 SOURCE_DIR="$SCRIPT_DIR/config"
 
 mkdir -p "$CONFIG_HOME"
@@ -34,7 +34,7 @@ cp -R "$SOURCE_DIR/." "$WORK_DIR/config/"
 
 BACKUP_DIR=""
 if [[ -e "$CONFIG_DIR" || -L "$CONFIG_DIR" ]]; then
-  BACKUP_DIR="$(mktemp -d "$CONFIG_HOME/nvim.backup.$(date +%Y%m%d_%H%M%S).XXXXXX")"
+  BACKUP_DIR="$(mktemp -d "$CONFIG_HOME/nvim-mouhong.backup.$(date +%Y%m%d_%H%M%S).XXXXXX")"
   mv "$CONFIG_DIR" "$BACKUP_DIR/nvim"
   echo "   已備份原有設定至 $BACKUP_DIR/nvim"
 fi
@@ -49,4 +49,5 @@ if ! mv "$WORK_DIR/config" "$CONFIG_DIR"; then
 fi
 
 echo "✅ 已套用個人 LazyVim 設定至 $CONFIG_DIR"
-echo "   開啟 nvim，等待外掛安裝完成，再執行 :Lazy restore 與 :LazyHealth"
+echo "   執行 mouhong 後開啟 nvim（或 NVIM_APPNAME=nvim-mouhong nvim）。"
+echo "   等待外掛安裝完成，再執行 :Lazy restore 與 :LazyHealth。"

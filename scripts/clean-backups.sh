@@ -51,29 +51,53 @@ cleanup_tinyproxy_backups() {
 }
 
 cleanup_nvim_backups() {
-  local config_home="$1" backup suffix
+  local config_home="$1" backup suffix app
   local suffix_regex='^[0-9]{8}_[0-9]{6}\.[[:alnum:]]{6}$'
 
-  # LazyVim 使用 mktemp 建立 nvim.backup.<時間戳>.<六位隨機字元> 目錄。
-  for backup in "$config_home"/nvim.backup.*; do
-    [[ -d "$backup" && ! -L "$backup" ]] || continue
-    suffix="${backup#"$config_home/nvim.backup."}"
-    [[ "$suffix" =~ $suffix_regex ]] || continue
-    remove_backup "$backup" -rf
+  for app in nvim nvim-mouhong; do
+    for backup in "$config_home/$app".backup.*; do
+      [[ -d "$backup" && ! -L "$backup" ]] || continue
+      suffix="${backup#"$config_home/$app.backup."}"
+      [[ "$suffix" =~ $suffix_regex ]] || continue
+      [[ -e "$backup/nvim" || -L "$backup/nvim" ]] || continue
+      remove_backup "$backup" -rf
+    done
   done
 }
 
-cleanup_codex_backups() {
-  local config_dir="$1" backup suffix
+cleanup_config_directory_backups() {
+  local config_dir="$1" marker="$2" backup suffix
   local suffix_regex='^[0-9]{8}_[0-9]{6}\.[[:alnum:]]{6}$'
 
-  # Robot 安裝程式建立 backup.<時間戳>.<六位隨機字元>/config.toml。
+  # 只接受安裝器的命名規則，且必須含對應設定檔；不跟隨備份目錄連結。
   for backup in "$config_dir"/backup.*; do
     [[ -d "$backup" && ! -L "$backup" ]] || continue
     suffix="${backup#"$config_dir/backup."}"
     [[ "$suffix" =~ $suffix_regex ]] || continue
-    [[ -f "$backup/config.toml" || -L "$backup/config.toml" ]] || continue
+    [[ -f "$backup/$marker" || -L "$backup/$marker" ]] || continue
     remove_backup "$backup" -rf
+  done
+}
+
+cleanup_personal_backups() {
+  local config_home="$1" name
+  for name in bashrc profile zellij/config.kdl; do
+    cleanup_file_backups "$config_home/mouhong/$name" '^[0-9]{8}_[0-9]{6}\.[[:alnum:]]{6}$'
+  done
+  cleanup_file_backups "$config_home/zellij/config.kdl"
+  cleanup_config_directory_backups "$config_home/zellij" config.kdl
+  cleanup_config_directory_backups "$config_home/mouhong/zellij" config.kdl
+  cleanup_nvim_backups "$config_home"
+}
+
+cleanup_bash_migration_backups() {
+  local backup suffix
+  # 時間戳 + Python tempfile 的八位尾碼；符號連結只刪連結本身。
+  for backup in "$HOME"/.bashrc.before-mouhong.*; do
+    [[ -f "$backup" || -L "$backup" ]] || continue
+    suffix="${backup#"$HOME/.bashrc.before-mouhong."}"
+    [[ "$suffix" =~ ^[0-9]{8}_[0-9]{6}\.[a-z0-9_]{8}$ ]] || continue
+    remove_backup "$backup" -f
   done
 }
 
@@ -86,6 +110,8 @@ main() {
 用法：bash scripts/clean-backups.sh [--dry-run]
 
 自動刪除 Mac、Ubuntu、Robot、Codex、zellij 與 LazyVim 安裝腳本產生的設定備份。
+包括 mouhong 個人設定、舊 Robot 代理遷移、Fcitx5 輸入法選擇的備份。
+不刪除目前設定、歷史記錄、登入資料、Tailscale 狀態或 /opt/neovim 執行檔。
 Codex 備份目錄使用 CODEX_HOME，未設定時使用 ~/.codex。
   --dry-run  只列出符合條件的備份，不刪除
   -h, --help 顯示說明
@@ -99,12 +125,17 @@ EOF
 
   echo "==> 檢查安裝腳本產生的備份"
   cleanup_file_backups "$HOME/.zshrc"
+  cleanup_file_backups "$HOME/.zprofile"
   cleanup_file_backups "$HOME/.bashrc" '^[0-9]{8}_[0-9]{6}(\.[[:alnum:]]{6})?$'
-  cleanup_file_backups "$HOME/.config/zellij/config.kdl"
+  cleanup_file_backups "$HOME/.xinputrc" '^[0-9]{8}_[0-9]{6}\.[[:alnum:]]{6}$'
+  cleanup_bash_migration_backups
+  cleanup_personal_backups "${XDG_CONFIG_HOME:-$HOME/.config}"
+  if [[ ${XDG_CONFIG_HOME:-$HOME/.config} != "$HOME/.config" ]]; then
+    cleanup_personal_backups "$HOME/.config"
+  fi
   cleanup_file_backups /etc/keyd/default.conf
   cleanup_tinyproxy_backups
-  cleanup_nvim_backups "${XDG_CONFIG_HOME:-$HOME/.config}"
-  cleanup_codex_backups "${CODEX_HOME:-$HOME/.codex}"
+  cleanup_config_directory_backups "${CODEX_HOME:-$HOME/.codex}" config.toml
 
   if [[ "$CLEANUP_COUNT" == 0 ]]; then
     echo "沒有找到符合條件的備份。"

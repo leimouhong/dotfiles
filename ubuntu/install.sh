@@ -1,8 +1,244 @@
 #!/usr/bin/env bash
-# dotfiles/ubuntu/install.sh (Ubuntu 一鍵配置)
+# dotfiles/ubuntu/install.sh（安裝一次，執行 mouhong 按需啟用）
 set -euo pipefail
 
 SCRIPT_DIR="$(cd -- "$(dirname -- "${BASH_SOURCE[0]}")" && pwd)"
+
+usage() {
+  cat <<'EOF'
+用法：bash ubuntu/install.sh [--computer | --robot]
+
+  --computer  電腦：共用個人環境 + 桌面／開發套件
+  --robot     機器人：共用個人環境，保留系統 Python、ROS 及廠商設定
+  不加參數    互動選擇；非互動執行必須明確指定模式
+
+兩種模式最後都會詢問是否啟用 Tailscale，以及是否使用
+Hetzner 100.78.131.72 作為出口；非互動執行略過網路設定。
+啟用時：電腦設定開機自啟，機器人只啟動本次、之後手動開啟。
+EOF
+}
+
+select_profile() {
+  INSTALL_PROFILE=""
+  while [[ $# -gt 0 ]]; do
+    case "$1" in
+      --computer|--robot)
+        if [[ -n "$INSTALL_PROFILE" ]]; then
+          echo "請只選擇一種安裝模式。" >&2
+          return 1
+        fi
+        INSTALL_PROFILE="${1#--}"
+        ;;
+      *) echo "不支援的參數：$1" >&2; return 1 ;;
+    esac
+    shift
+  done
+  if [[ -z "$INSTALL_PROFILE" ]]; then
+    if [[ ! -t 0 ]]; then
+      echo "非互動執行請指定 --computer 或 --robot。" >&2
+      return 1
+    fi
+    local answer
+    read -r -p "安裝到 1) 電腦  2) 機器人？[1] " answer
+    case "${answer:-1}" in
+      1|computer) INSTALL_PROFILE=computer ;;
+      2|robot) INSTALL_PROFILE=robot ;;
+      *) echo "無效的選擇。" >&2; return 1 ;;
+    esac
+  fi
+  echo "==> 安裝模式：$INSTALL_PROFILE"
+}
+
+clear_proxy_environment() {
+  unset http_proxy https_proxy HTTP_PROXY HTTPS_PROXY all_proxy ALL_PROXY no_proxy NO_PROXY
+}
+
+install_base_packages() {
+  local packages=(
+    build-essential git curl wget vim nano htop btop net-tools openssh-server
+    cmake gdb unzip zip ca-certificates gawk gpg gnupg lsb-release pkg-config
+  )
+  if [[ "$INSTALL_PROFILE" == computer ]]; then
+    packages+=(xclip wl-clipboard python3 python-is-python3 python3-venv python3-dev libopencv-dev)
+  fi
+  # 不移除或改版機器人現有的 Python、OpenCV、ROS 套件。
+  sudo apt install -y "${packages[@]}"
+}
+
+confirm() {
+  local answer
+  [[ -t 0 ]] || return 1
+  read -r -p "$1 [y/N] " answer && [[ "$answer" =~ ^[Yy]([Ee][Ss])?$ ]]
+}
+
+configure_tailscale() (
+  set -euo pipefail
+  echo "==> 可選：設定 Tailscale"
+  local prompt="是否安裝並啟用 Tailscale（電腦會設定開機自啟）？"
+  if [[ "$INSTALL_PROFILE" == robot ]]; then
+    prompt="是否安裝並啟用 Tailscale（機器人只啟動本次，之後手動開啟）？"
+  fi
+  if ! confirm "$prompt"; then
+    echo "   略過 Tailscale，保留目前網路設定。"
+    return 0
+  fi
+  if ! command -v tailscale >/dev/null 2>&1; then
+    local stage
+    stage=$(mktemp -d)
+    trap 'rm -rf "$stage"' EXIT
+    curl -fsSL --retry 3 https://tailscale.com/install.sh -o "$stage/install.sh"
+    sh "$stage/install.sh"
+  fi
+  if [[ "$INSTALL_PROFILE" == robot ]]; then
+    # 官方套件可能預設自啟；新裝及重跑都取消自啟，但不切斷目前連線。
+    sudo systemctl disable tailscaled
+    sudo systemctl start tailscaled
+    # 連線前先保留原本 DNS，避免接收其他設備宣告的子網路路由。
+    sudo tailscale set --accept-dns=false --accept-routes=false
+    echo "   已取消開機自啟。本次啟用後，下次開機需手動執行："
+    echo "   sudo systemctl start tailscaled && sudo tailscale up"
+  else
+    sudo systemctl enable --now tailscaled
+  fi
+  echo "   首次使用請開啟下方登入網址，完成 Tailscale 登入。"
+  # 不帶偏好旗標，重跑時保留既有設定；指定偏好一律用 set 更新。
+  sudo tailscale up
+  if confirm "是否使用 Hetzner（100.78.131.72）作為 exit node？N 保留目前出口設定。"; then
+    sudo tailscale set --exit-node=100.78.131.72 --exit-node-allow-lan-access=true
+    echo "   已選用 Hetzner，並允許存取本地 LAN。"
+  else
+    echo "   保留目前出口設定。"
+  fi
+  sudo tailscale status
+)
+
+install_codex() (
+  set -euo pipefail
+  if ! type -P codex >/dev/null 2>&1; then
+    npm install --global @openai/codex@latest
+  fi
+  command codex --version
+  local config_dir="${CODEX_HOME:-$HOME/.codex}"
+  mkdir -p "$config_dir"
+  if [[ -e "$config_dir/config.toml" || -L "$config_dir/config.toml" ]]; then
+    echo "   保留原有 Codex 設定及登入資料。"
+    return 0
+  fi
+  # 延續原有 Robot 的初始偏好；日誌使用 Codex 的使用者預設目錄。
+  cat > "$config_dir/config.toml" <<'EOF'
+approval_policy = "never"
+sandbox_mode = "danger-full-access"
+model_reasoning_effort = "xhigh"
+web_search = "live"
+
+[tui]
+alternate_screen = "never"
+animations = false
+EOF
+)
+
+# 以函式分段，整個 Ubuntu 安裝只有這個主入口。
+# 子 Shell 讓暫存目錄與 trap 不會影響主安裝流程。
+install_personal_environment() (
+  set -euo pipefail
+  CONFIG_HOME="${XDG_CONFIG_HOME:-$HOME/.config}"
+  CONFIG_DIR="$CONFIG_HOME/mouhong"
+  mkdir -p "$CONFIG_DIR/zellij" "$HOME/.local/bin"
+  WORK_DIR=$(mktemp -d "$CONFIG_DIR/.install.XXXXXX")
+  trap 'rm -rf "$WORK_DIR"' EXIT
+
+  cp "$SCRIPT_DIR/.bashrc" "$WORK_DIR/bashrc"
+  cp "$SCRIPT_DIR/mouhong" "$WORK_DIR/mouhong"
+  cp "$SCRIPT_DIR/../zellij/config.kdl" "$WORK_DIR/config.kdl"
+  printf '%s\n' "${INSTALL_PROFILE:-computer}" > "$WORK_DIR/profile"
+  # Zellij 每個新窗格都從入口載入個人 Bash，不會回到原有 ~/.bashrc。
+  printf '\n// Ubuntu 個人環境的新窗格\ndefault_shell "/usr/local/bin/mouhong"\n' >> "$WORK_DIR/config.kdl"
+  bash -n "$WORK_DIR/bashrc"
+  bash -n "$WORK_DIR/mouhong"
+  zellij --config "$WORK_DIR/config.kdl" setup --check
+
+  # 只備份及更新自己的檔案，原有 Bash / Zellij 設定不在部署目標中。
+  for config_name in bashrc zellij/config.kdl profile; do
+    stage_name="${config_name##*/}"
+    if ! cmp -s "$WORK_DIR/$stage_name" "$CONFIG_DIR/$config_name"; then
+      if [[ -e "$CONFIG_DIR/$config_name" || -L "$CONFIG_DIR/$config_name" ]]; then
+        backup_file=$(mktemp "$CONFIG_DIR/$config_name.backup.$(date +%Y%m%d_%H%M%S).XXXXXX")
+        cp -P "$CONFIG_DIR/$config_name" "$backup_file"
+      fi
+      mv -f "$WORK_DIR/$stage_name" "$CONFIG_DIR/$config_name"
+    fi
+  done
+
+  bash "$SCRIPT_DIR/nvim/install.sh"
+  # /usr/local/bin 在 Ubuntu 的預設 PATH 中，新 SSH 連線不用修改啟動檔。
+  sudo install -m 0755 "$WORK_DIR/mouhong" /usr/local/bin/mouhong
+  echo "✅ 個人環境已安裝。執行 mouhong 啟用，exit 返回原本 Shell。"
+)
+
+install_fcitx5() (
+  set -euo pipefail
+  if [[ $EUID -eq 0 ]]; then
+    echo "請以一般使用者執行此腳本，套件安裝會自行使用 sudo。" >&2
+    exit 1
+  fi
+
+  sudo apt install -y \
+    fcitx5 fcitx5-pinyin fcitx5-chinese-addons fcitx5-config-qt \
+    fcitx5-frontend-gtk2 fcitx5-frontend-gtk3 fcitx5-frontend-gtk4 \
+    fcitx5-frontend-qt5 im-config
+
+  # im-config 自行處理桌面啟動及 GTK / Qt / XIM 變數；不寫入 Shell 啟動檔。
+  if [[ -f "$HOME/.xinputrc" ]]; then
+    backup_file=$(mktemp "$HOME/.xinputrc.backup.$(date +%Y%m%d_%H%M%S).XXXXXX")
+    cp -p "$HOME/.xinputrc" "$backup_file"
+  fi
+  if ! im-config -n fcitx5; then
+    echo "im-config 未能切換輸入法（可能已有手動設定的 ~/.xinputrc）。" >&2
+    echo "請檢查原設定後執行 im-config 選擇 Fcitx5；原設定保留。" >&2
+    exit 1
+  fi
+
+  FCITX_DIR="${XDG_CONFIG_HOME:-$HOME/.config}/fcitx5"
+  mkdir -p "$FCITX_DIR"
+  if [[ ! -e "$FCITX_DIR/profile" && ! -L "$FCITX_DIR/profile" ]]; then
+    cat > "$FCITX_DIR/profile" <<'EOF'
+[Groups/0]
+Name=Default
+Default Layout=us
+DefaultIM=pinyin
+
+[Groups/0/Items/0]
+Name=keyboard-us
+Layout=
+
+[Groups/0/Items/1]
+Name=pinyin
+Layout=
+
+[GroupOrder]
+0=Default
+EOF
+  else
+    echo "   保留既有 Fcitx5 輸入法清單；如未有 Pinyin，請用 fcitx5-configtool 加入。"
+  fi
+
+  echo "✅ 已安裝 Fcitx5 + Pinyin；請登出 Ubuntu 圖形桌面後重新登入。"
+  echo "   預設 Ctrl+Space 切換；設定：fcitx5-configtool；診斷：fcitx5-diagnose。"
+)
+
+# 允許測試只載入函式；直接執行時才進行系統安裝。
+if [[ "${BASH_SOURCE[0]}" != "$0" ]]; then
+  return 0
+fi
+if [[ ${1:-} == -h || ${1:-} == --help ]]; then
+  usage
+  exit 0
+fi
+select_profile "$@"
+if [[ "$INSTALL_PROFILE" == robot ]]; then
+  # 不沿用呼叫端先前 proxy_on 匯出的 Mac 代理；不修改父 Shell。
+  clear_proxy_environment
+fi
 
 if [[ "$(uname -s)" != Linux ]]; then
   echo "此腳本僅供 Ubuntu 使用。" >&2
@@ -17,6 +253,10 @@ else
 fi
 if [[ "${ID:-}" != ubuntu ]]; then
   echo "此腳本僅供 Ubuntu 使用。" >&2
+  exit 1
+fi
+if [[ $EUID -eq 0 ]]; then
+  echo "請以一般使用者執行 bash ubuntu/install.sh；需要管理員權限時會使用 sudo。" >&2
   exit 1
 fi
 
@@ -74,59 +314,41 @@ _install_tar_binary() {
 echo "==> 更新套件"
 sudo apt update -qq
 
-echo "==> 安裝常用開發工具與系統 Python / OpenCV 開發依賴"
+echo "==> 安裝共用開發工具與所選模式的依賴"
 sudo apt install -y software-properties-common
 sudo add-apt-repository -y universe
-COMMON_DEV_PACKAGES=(
-  build-essential
-  git
-  curl
-  wget
-  vim
-  nano
-  htop
-  btop
-  net-tools
-  openssh-server
-  cmake
-  gdb
-  unzip
-  zip
-  software-properties-common
-  ca-certificates
-  gawk
-  gpg
-  gnupg
-  lsb-release
-  pkg-config
-  xclip
-  wl-clipboard
-)
-SYSTEM_PYTHON_PACKAGES=(
-  python3
-  python-is-python3
-  python3-venv
-  python3-dev
-  libopencv-dev
-)
-# Python 函式庫改由各專案的 uv 管理；不移除既有 apt / ROS 套件。
-sudo apt install -y "${COMMON_DEV_PACKAGES[@]}" "${SYSTEM_PYTHON_PACKAGES[@]}"
-unset COMMON_DEV_PACKAGES SYSTEM_PYTHON_PACKAGES
+install_base_packages
+if ! command -v python3 >/dev/null 2>&1; then
+  echo "本安裝器需要 Ubuntu 現有的 python3；機器人模式不自行更換系統 Python。" >&2
+  exit 1
+fi
 
-echo "==> 安裝 VS Code"
-wget -qO- https://packages.microsoft.com/keys/microsoft.asc \
-  | gpg --dearmor \
-  | sudo tee /usr/share/keyrings/packages.microsoft.gpg >/dev/null
-echo "deb [arch=$DPKG_ARCH signed-by=/usr/share/keyrings/packages.microsoft.gpg] https://packages.microsoft.com/repos/code stable main" \
-  | sudo tee /etc/apt/sources.list.d/vscode.list >/dev/null
-sudo apt update -qq
-sudo apt install -y code
+# 線上入口也先取得完整部署檔案，所有設定使用同一份 checkout。
+if [[ ! -f "$SCRIPT_DIR/mouhong" || ! -f "$SCRIPT_DIR/migrate-bashrc.py" ]]; then
+  git clone -q --depth 1 https://github.com/leimouhong/dotfiles.git "$WORK_DIR/dotfiles"
+  SCRIPT_DIR="$WORK_DIR/dotfiles/ubuntu"
+fi
+python3 "$SCRIPT_DIR/migrate-bashrc.py"
 
-if [[ "$UBUNTU_CODENAME" == "jammy" ]]; then
+if [[ "$INSTALL_PROFILE" == computer ]]; then
+  echo "==> 安裝桌面 Fcitx5 + Pinyin"
+  install_fcitx5
+
+  echo "==> 安裝 VS Code"
+  wget -qO- https://packages.microsoft.com/keys/microsoft.asc \
+    | gpg --dearmor \
+    | sudo tee /usr/share/keyrings/packages.microsoft.gpg >/dev/null
+  echo "deb [arch=$DPKG_ARCH signed-by=/usr/share/keyrings/packages.microsoft.gpg] https://packages.microsoft.com/repos/code stable main" \
+    | sudo tee /etc/apt/sources.list.d/vscode.list >/dev/null
+  sudo apt update -qq
+  sudo apt install -y code
+fi
+
+if [[ "$INSTALL_PROFILE" == computer && "$UBUNTU_CODENAME" == jammy ]]; then
   echo "==> 安裝 ROS 2 Humble"
   sudo apt install -y locales
   sudo locale-gen en_US en_US.UTF-8
-  sudo update-locale LC_ALL=en_US.UTF-8 LANG=en_US.UTF-8
+  # 只產生 ROS 可用的 locale，保留 Ubuntu 原本的全域語系。
   sudo add-apt-repository -y universe
   ROS_APT_SOURCE_VERSION=$(_latest_v ros-infrastructure/ros-apt-source)
   curl -fsSL --retry 3 -o "$WORK_DIR/ros2-apt-source.deb" \
@@ -147,7 +369,7 @@ if [[ "$UBUNTU_CODENAME" == "jammy" ]]; then
     rosdep update || echo "   rosdep update 失敗，可稍後手動執行 rosdep update"
   fi
 else
-  echo "==> 略過 ROS 2 Humble：Humble apt 套件目標是 Ubuntu 22.04 jammy，目前偵測為 ${UBUNTU_CODENAME:-unknown}"
+  echo "==> 略過 ROS 2 Humble（僅電腦模式的 Ubuntu 22.04 安裝）"
 fi
 
 echo "==> 安裝 ripgrep"
@@ -165,12 +387,6 @@ DUST_VER=$(_latest bootandy/dust)
 _install_tar_binary bootandy/dust "v$DUST_VER" "dust-v${DUST_VER}-${FD_ARCH}.tar.gz" "dust-v${DUST_VER}-${FD_ARCH}/dust" dust
 DELTA_VER=$(_latest dandavison/delta)
 _install_tar_binary dandavison/delta "$DELTA_VER" "delta-${DELTA_VER}-${DELTA_ARCH}.tar.gz" "delta-${DELTA_VER}-${DELTA_ARCH}/delta" delta
-
-git config --global --get core.pager >/dev/null || git config --global core.pager delta
-git config --global --get interactive.diffFilter >/dev/null || git config --global interactive.diffFilter 'delta --color-only'
-git config --global --get delta.side-by-side >/dev/null || git config --global delta.side-by-side true
-git config --global --get delta.line-numbers >/dev/null || git config --global delta.line-numbers true
-git config --global --get delta.syntax-theme >/dev/null || git config --global delta.syntax-theme Dracula
 
 echo "==> 安裝 fzf"
 FZF_VER=$(_latest junegunn/fzf)
@@ -197,53 +413,31 @@ make -C "$BLE_SRC" install PREFIX=~/.local --quiet
 rm -rf "$BLE_SRC"
 unset BLE_SRC
 
-echo "==> 從源碼安裝 keyd"
-KEYD_SRC="$WORK_DIR/keyd"
-KEYD_TAG=$(
-  git ls-remote --tags --refs https://github.com/rvaiya/keyd.git 'v*' \
-    | awk -F/ '{print $3}' \
-    | grep -E '^v[0-9]+(\.[0-9]+)*$' \
-    | sort -V \
-    | tail -n1 \
-    || true
-)
-if [[ -n "$KEYD_TAG" ]]; then
-  git clone -q --depth 1 --branch "$KEYD_TAG" https://github.com/rvaiya/keyd.git "$KEYD_SRC"
-else
-  git clone -q --depth 1 https://github.com/rvaiya/keyd.git "$KEYD_SRC"
-fi
-make -C "$KEYD_SRC" --quiet
-sudo make -C "$KEYD_SRC" install --quiet
-rm -rf "$KEYD_SRC"
-unset KEYD_SRC KEYD_TAG
+if [[ "$INSTALL_PROFILE" == computer ]]; then
+  echo "==> 從源碼安裝 keyd"
+  KEYD_SRC="$WORK_DIR/keyd"
+  KEYD_TAG=$(
+    git ls-remote --tags --refs https://github.com/rvaiya/keyd.git 'v*' \
+      | awk -F/ '{print $3}' \
+      | grep -E '^v[0-9]+(\.[0-9]+)*$' \
+      | sort -V \
+      | tail -n1 \
+      || true
+  )
+  if [[ -n "$KEYD_TAG" ]]; then
+    git clone -q --depth 1 --branch "$KEYD_TAG" https://github.com/rvaiya/keyd.git "$KEYD_SRC"
+  else
+    git clone -q --depth 1 https://github.com/rvaiya/keyd.git "$KEYD_SRC"
+  fi
+  make -C "$KEYD_SRC" --quiet
+  sudo make -C "$KEYD_SRC" install --quiet
+  rm -rf "$KEYD_SRC"
+  unset KEYD_SRC KEYD_TAG
 
-echo "==> 套用 keyd 設定（Tab + hjkl 方向鍵）"
-sudo mkdir -p /etc/keyd
-if [[ -f /etc/keyd/default.conf ]]; then
-  sudo cp /etc/keyd/default.conf "/etc/keyd/default.conf.backup.$(date +%Y%m%d_%H%M%S)"
-  echo "   已備份原有 keyd 設定至 /etc/keyd/default.conf.backup.*"
+  # keyd 是整台電腦的鍵盤服務，無法隨子 Shell 的 exit 還原。
+  # 僅安裝程式，不覆寫 /etc/keyd/default.conf，也不自動啟用服務。
+  echo "   keyd 已安裝；需要 Tab + hjkl 時可依 README 手動啟用。"
 fi
-if [[ -f "$SCRIPT_DIR/keyd/default.conf" ]]; then
-  sudo install -m 0644 "$SCRIPT_DIR/keyd/default.conf" /etc/keyd/default.conf
-else
-  sudo tee /etc/keyd/default.conf >/dev/null <<'EOF'
-[ids]
-*
-
-[main]
-tab = overload(nav, tab)
-
-[nav]
-h = left
-j = down
-k = up
-l = right
-EOF
-fi
-sudo keyd check /etc/keyd/default.conf
-sudo systemctl daemon-reload
-sudo systemctl enable --now keyd
-sudo keyd reload
 
 echo "==> 安裝 Neovim（官方 tarball，無需 FUSE，$DPKG_ARCH）"
 NVIM_TAG=$(_latest_v neovim/neovim)
@@ -281,87 +475,73 @@ if ! nvm use default; then
 fi
 
 echo "==> 設定 uv Python 3.12 與 Neovim providers"
-if [[ -f "$SCRIPT_DIR/../scripts/install-common.sh" ]]; then
-  bash "$SCRIPT_DIR/../scripts/install-common.sh"
-else
-  curl -fsSL --retry 3 https://raw.githubusercontent.com/leimouhong/dotfiles/main/scripts/install-common.sh -o "$WORK_DIR/install-common.sh"
-  bash "$WORK_DIR/install-common.sh"
-fi
+(
+  set -euo pipefail
 
-echo "==> 安裝 LazyVim"
-if [[ -f "$SCRIPT_DIR/nvim/install.sh" ]]; then
-  bash "$SCRIPT_DIR/nvim/install.sh"
-else
-  (
-    NVIM_INSTALLER=$(mktemp)
-    trap 'rm -f "$NVIM_INSTALLER"' EXIT
-    curl -fsSL https://raw.githubusercontent.com/leimouhong/dotfiles/main/ubuntu/nvim/install.sh -o "$NVIM_INSTALLER"
-    bash "$NVIM_INSTALLER"
-  )
-fi
+  WORK_DIR=$(mktemp -d)
+  trap 'rm -rf "$WORK_DIR"' EXIT
+  export PATH="$HOME/.local/bin:$PATH"
+  export UV_TOOL_BIN_DIR="$HOME/.local/bin"
 
-echo "==> 套用 zellij 設定"
-mkdir -p "$HOME/.config/zellij"
-if [[ -f "$HOME/.config/zellij/config.kdl" ]]; then
-  cp "$HOME/.config/zellij/config.kdl" "$HOME/.config/zellij/config.kdl.backup.$(date +%Y%m%d_%H%M%S)"
-  echo "   已備份原有 zellij 設定至 ~/.config/zellij/config.kdl.backup.*"
-fi
-if [[ -f "$SCRIPT_DIR/../zellij/config.kdl" ]]; then
-  cp "$SCRIPT_DIR/../zellij/config.kdl" "$HOME/.config/zellij/config.kdl"
-else
-  curl -fsSL https://raw.githubusercontent.com/leimouhong/dotfiles/main/zellij/config.kdl -o "$HOME/.config/zellij/config.kdl"
-fi
-
-echo "==> 套用 .bashrc"
-if [[ -f "$HOME/.bashrc" ]]; then
-  cp "$HOME/.bashrc" "$HOME/.bashrc.backup.$(date +%Y%m%d_%H%M%S)"
-  echo "   已備份原有 .bashrc 至 ~/.bashrc.backup.*"
-fi
-if [[ -f "$SCRIPT_DIR/.bashrc" ]]; then
-  cp "$SCRIPT_DIR/.bashrc" ~/.bashrc
-else
-  curl -fsSL https://raw.githubusercontent.com/leimouhong/dotfiles/main/ubuntu/.bashrc -o ~/.bashrc
-fi
-
-########################################
-# Tailscale（安裝最後詢問，預設略過）
-########################################
-echo "==> 可選：設定 Tailscale"
-if [[ ! -t 0 ]]; then
-  echo "   非互動式執行，略過 Tailscale 設定。"
-elif read -r -p "是否安裝並啟用 Tailscale？[y/N] " TAILSCALE_REPLY &&
-     [[ "$TAILSCALE_REPLY" =~ ^[Yy]([Ee][Ss])?$ ]]; then
-  if ! command -v tailscale >/dev/null 2>&1; then
-    curl -fsSL https://tailscale.com/install.sh | sh
-  else
-    echo "   Tailscale 已安裝，跳過安裝。"
+  if ! command -v uv >/dev/null 2>&1; then
+    curl -fsSL --retry 3 https://astral.sh/uv/install.sh -o "$WORK_DIR/uv-install.sh"
+    UV_INSTALL_DIR="$HOME/.local/bin" UV_NO_MODIFY_PATH=1 sh "$WORK_DIR/uv-install.sh"
   fi
-  sudo systemctl enable --now tailscaled
-  echo "   首次使用請開啟下方登入網址，完成 Tailscale 登入。"
-  sudo tailscale up
 
-  if read -r -p "是否將此裝置設為 Tailscale exit node？[y/N] " TAILSCALE_EXIT_NODE_REPLY &&
-     [[ "$TAILSCALE_EXIT_NODE_REPLY" =~ ^[Yy]([Ee][Ss])?$ ]]; then
-    echo "==> 啟用 exit node 所需的 IPv4 / IPv6 forwarding"
-    # 專用檔案由 dotfiles 管理；重跑時覆寫，避免重複追加設定。
-    sudo mkdir -p /etc/sysctl.d
-    sudo tee /etc/sysctl.d/99-tailscale-dotfiles.conf >/dev/null <<'EOF'
-# Managed by dotfiles/ubuntu/install.sh
-net.ipv4.ip_forward = 1
-net.ipv6.conf.all.forwarding = 1
-EOF
-    sudo sysctl -p /etc/sysctl.d/99-tailscale-dotfiles.conf
-    # set 僅修改指定選項，保留既有 DNS、路由等偏好。
-    sudo tailscale set --advertise-exit-node
-    echo "   如未設定自動核准，請到 https://login.tailscale.com/admin/machines"
-    echo "   選擇此裝置 → Edit route settings → 勾選 Use as exit node。"
-  else
-    echo "   略過 exit node 設定。"
+  echo "==> uv 安裝 Python 3.12 與 pynvim"
+  # uv 管理的 Python 僅供個人工具使用，保留 Ubuntu／機器人的系統 python3。
+  uv python install 3.12
+  PYTHON=$(uv python find --managed-python 3.12)
+  PIPX_PYNVIM=0
+  if command -v pipx >/dev/null 2>&1; then
+    pipx list --json > "$WORK_DIR/pipx.json"
+    PIPX_PYNVIM=$("$PYTHON" -c 'import json, sys; print(int("pynvim" in json.load(open(sys.argv[1]))["venvs"]))' "$WORK_DIR/pipx.json")
   fi
-  sudo tailscale status
-else
-  echo "   略過 Tailscale 設定。"
-fi
-unset TAILSCALE_REPLY TAILSCALE_EXIT_NODE_REPLY
 
-echo "✅ 完成！執行 source ~/.bashrc 生效"
+  if [[ "$PIPX_PYNVIM" == 1 ]]; then
+    # 先準備並驗證 uv 環境，再移除 pipx 的 pynvim；不影響其他 pipx 工具。
+    UV_TOOL_BIN_DIR="$WORK_DIR/bin" uv tool install --force --managed-python --python 3.12 'pynvim>=0.6.0'
+    "$(uv tool dir)/pynvim/bin/python" -c 'import pynvim, sys; assert sys.version_info[:2] == (3, 12)'
+    pipx uninstall pynvim
+    uv tool install --force --offline --managed-python --python 3.12 'pynvim>=0.6.0'
+  else
+    uv tool install --managed-python --python 3.12 'pynvim>=0.6.0'
+  fi
+  "$(uv tool dir)/pynvim/bin/python" -c 'import pynvim, sys; assert sys.version_info[:2] == (3, 12)'
+
+  echo "==> 安裝目前 Node 版本的 Neovim provider"
+  npm install --global neovim
+  # LazyVim / nvim-treesitter 編譯 parser 使用。
+  npm install --global tree-sitter-cli
+
+  echo "==> 驗證 Neovim 的 Python / Node provider"
+  cat > "$WORK_DIR/check-provider.lua" <<'LUA'
+vim.g.python3_host_prog = vim.fn.expand("~/.local/bin/pynvim-python")
+assert(vim.fn.has("python3") == 1, "Python provider unavailable")
+assert(vim.fn.py3eval("6 * 7") == 42, "Python evaluation failed")
+local version = vim.fn.py3eval('__import__("sys").version.split()[0]')
+assert(version:match("^3%.12%."), "Expected Python 3.12, got " .. version)
+vim.cmd([[python3 vim.vars['provider_check'] = 'ok']])
+assert(vim.g.provider_check == "ok", "Python RPC failed")
+assert(vim.fn["provider#node#Prog"]() ~= "", "Node provider unavailable")
+local channel = vim.fn["remote#host#Require"]("node")
+assert(channel > 0 and vim.fn.rpcrequest(channel, "poll") == "ok", "Node RPC failed")
+print("Neovim providers OK; Python " .. version)
+LUA
+  nvim --headless -u NONE -i NONE -n -l "$WORK_DIR/check-provider.lua"
+)
+
+echo "==> 安裝 mouhong 個人環境（Bash / LazyVim / Zellij）"
+install_personal_environment
+
+echo "==> 安裝 Codex CLI"
+install_codex
+
+# 兩種模式都在全部工具部署後才詢問；不提供本機 exit node 宣告功能。
+configure_tailscale
+
+echo "✅ 安裝完成（$INSTALL_PROFILE）！執行 mouhong 啟用，exit 返回原本 Shell。"
+echo "   SSH 登入不會自動啟用；舊版使用者請重新開啟終端／SSH 連線。"
+if [[ "$INSTALL_PROFILE" == computer ]]; then
+  echo "   Fcitx5 請登出圖形桌面後重新登入。"
+fi

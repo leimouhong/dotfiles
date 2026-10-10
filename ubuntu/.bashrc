@@ -1,13 +1,18 @@
 ########################################
 # 0. 僅互動式 shell 載入
 ########################################
-# ble.sh 必須在最頂端 source（--noattach 模式）
-[[ $- == *i* ]] && source ~/.local/share/blesh/ble.sh --noattach 2>/dev/null
-
 [[ $- != *i* ]] && return
+# 此檔只由 mouhong --rcfile 載入；不覆寫使用者的 ~/.bashrc。
+[[ ${MOUHONG_ACTIVE:-} == 1 ]] || return
+
+export PATH="$HOME/.local/bin:/usr/local/bin:$PATH"
+# ble.sh 在互動設定之前載入（--noattach 模式）。
+if [[ -r "$HOME/.local/share/blesh/ble.sh" ]]; then
+  source "$HOME/.local/share/blesh/ble.sh" --noattach
+fi
 
 if [[ ${BLE_VERSION-} ]]; then
-  # 保留自動補全、Tab 候選選單與選單內過濾；history 搜尋直接逐行讀取 ~/.bash_history。
+  # 保留自動補全、Tab 候選選單與選單內過濾。
   bleopt complete_auto_complete=1
   bleopt complete_auto_delay=300
   bleopt complete_auto_history=1
@@ -18,7 +23,8 @@ fi
 ########################################
 # 1. History
 ########################################
-HISTFILE="$HOME/.bash_history"
+mkdir -p "${XDG_STATE_HOME:-$HOME/.local/state}/mouhong"
+HISTFILE="${XDG_STATE_HOME:-$HOME/.local/state}/mouhong/bash_history"
 HISTSIZE=100000
 HISTFILESIZE=100000
 HISTCONTROL=ignoredups
@@ -113,7 +119,7 @@ __dotfiles_history_nav_reset() {
   __dotfiles_history_nav_current=
 }
 
-# ble.sh 直接搜尋記憶體中的 history，避免每按一次方向鍵都重讀整份 ~/.bash_history。
+# ble.sh 直接搜尋記憶體中的 history，避免每按一次方向鍵都重讀整份個人 history。
 __dotfiles_ble_history_bindings() {
   ble-bind -f up history-substring-search-backward
   ble-bind -f down history-substring-search-forward
@@ -145,7 +151,7 @@ elif command -v fzf >/dev/null 2>&1; then
   bind -m emacs -x '"\ec": __fzf_cd__' 2>/dev/null
   bind -m vi-insert -x '"\ec": __fzf_cd__' 2>/dev/null
 
-  # Ctrl-R 歷史搜尋：直接逐行讀取 ~/.bash_history
+  # Ctrl-R 歷史搜尋：直接逐行讀取個人 HISTFILE
   bind -m emacs -x '"\C-r": __dotfiles_fzf_history_widget' 2>/dev/null
   bind -m vi-insert -x '"\C-r": __dotfiles_fzf_history_widget' 2>/dev/null
 
@@ -190,11 +196,28 @@ __dotfiles_path_prepend "$HOME/.local/bin"
 export PATH
 export EDITOR="nvim"
 export LESS='-R'
+PS1='[mouhong] \u@\h:\w\$ '
+
+# Git 偏好只傳給子程序；保留 ~/.gitconfig 及既有身份、remote 等設定。
+if command -v delta >/dev/null 2>&1; then
+  __mouhong_git_option() {
+    local index="${GIT_CONFIG_COUNT:-0}"
+    [[ "$index" =~ ^[0-9]+$ ]] || index=0
+    export "GIT_CONFIG_KEY_$index=$1" "GIT_CONFIG_VALUE_$index=$2"
+    export GIT_CONFIG_COUNT=$((index + 1))
+  }
+  __mouhong_git_option core.pager delta
+  __mouhong_git_option interactive.diffFilter 'delta --color-only'
+  __mouhong_git_option delta.side-by-side true
+  __mouhong_git_option delta.line-numbers true
+  __mouhong_git_option delta.syntax-theme Dracula
+  unset -f __mouhong_git_option
+fi
 
 ########################################
 # 5. ROS 2 Humble
 ########################################
-if [[ -f /opt/ros/humble/setup.bash ]]; then
+if [[ ${MOUHONG_PROFILE:-computer} == computer && -f /opt/ros/humble/setup.bash ]]; then
   source /opt/ros/humble/setup.bash
 fi
 

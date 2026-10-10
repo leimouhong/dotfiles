@@ -58,8 +58,7 @@ brew install \
   neovim \
   tree-sitter-cli \
   lazygit \
-  zellij \
-  tinyproxy
+  zellij
 
 # 只補上缺少的 Git 顯示設定，保留使用者已有的偏好。
 git config --global --get core.pager >/dev/null || git config --global core.pager delta
@@ -67,72 +66,6 @@ git config --global --get interactive.diffFilter >/dev/null || git config --glob
 git config --global --get delta.side-by-side >/dev/null || git config --global delta.side-by-side true
 git config --global --get delta.line-numbers >/dev/null || git config --global delta.line-numbers true
 git config --global --get delta.syntax-theme >/dev/null || git config --global delta.syntax-theme Dracula
-
-########################################
-# 機器人 HTTP/HTTPS 代理
-########################################
-echo "==> 設定機器人使用的 tinyproxy"
-(
-  # 在子 shell 內處理暫存檔，避免影響後續安裝流程。
-  read_ip() {
-    local label="$1" default_ip="$2" value
-    if [[ ! -t 0 ]]; then
-      echo "請在互動式終端執行，以輸入 Mac 和機器人的 IP。" >&2
-      return 1
-    fi
-    read -r -p "$label [$default_ip]：" value
-    value="${value:-$default_ip}"
-    if [[ ! "$value" =~ ^[0-9]{1,3}\.[0-9]{1,3}\.[0-9]{1,3}\.[0-9]{1,3}$ ]] ||
-       ! awk -F. '{for (i=1; i<=NF; i++) if ($i>255) exit 1}' <<< "$value"; then
-      echo "無效的 IPv4 位址：$value" >&2
-      return 1
-    fi
-    printf '%s\n' "$value"
-  }
-
-  listen_address=$(read_ip "Mac 連接機器人的網線 IP" 192.168.10.10)
-  client_address=$(read_ip "機器人的固定 IP" 192.168.10.102)
-  if [[ "$listen_address" == "$client_address" ]]; then
-    echo "Mac 和機器人不能使用相同 IP。" >&2
-    exit 1
-  fi
-
-  BREW_PREFIX=$(brew --prefix)
-  TINYPROXY_PREFIX=$(brew --prefix tinyproxy)
-  CONFIG_DIR="$BREW_PREFIX/etc/tinyproxy"
-  CONFIG_FILE="$CONFIG_DIR/tinyproxy.conf"
-  WORK_DIR=$(mktemp -d)
-  trap 'rm -rf "$WORK_DIR"' EXIT
-  if [[ -f "$SCRIPT_DIR/tinyproxy.conf" ]]; then
-    cp "$SCRIPT_DIR/tinyproxy.conf" "$WORK_DIR/template.conf"
-  else
-    curl -fsSL https://raw.githubusercontent.com/leimouhong/dotfiles/main/mac/tinyproxy.conf -o "$WORK_DIR/template.conf"
-  fi
-  # 模板固定 Listen 0.0.0.0，只需要代入機器人 IP 與 Homebrew 路徑。
-  sed -e "s/@client_address@/$client_address/g" \
-    -e "s|@brew_prefix@|$BREW_PREFIX|g" \
-    -e "s|@tinyproxy_prefix@|$TINYPROXY_PREFIX|g" \
-    "$WORK_DIR/template.conf" > "$WORK_DIR/tinyproxy.conf"
-
-  mkdir -p "$CONFIG_DIR"
-  if ! cmp -s "$WORK_DIR/tinyproxy.conf" "$CONFIG_FILE"; then
-    if [[ -e "$CONFIG_FILE" ]]; then
-      BACKUP=$(mktemp "$CONFIG_FILE.backup.$(date +%Y%m%d_%H%M%S).XXXXXX")
-      cp -p "$CONFIG_FILE" "$BACKUP"
-      echo "   已備份原有設定至 $BACKUP"
-    fi
-    cp "$WORK_DIR/tinyproxy.conf" "$CONFIG_FILE"
-  fi
-  echo "==> 已套用 $CONFIG_FILE"
-
-  # tinyproxy 監聽 0.0.0.0，macOS 會自動綁定所有網路介面，無需額外設定。
-  echo "==> 重啟 tinyproxy"
-  brew services restart tinyproxy
-
-  if ! ifconfig | awk -v ip="$listen_address" '$1 == "inet" && $2 == ip {found=1} END {exit !found}'; then
-    echo "   提醒：Mac 尚無 ${listen_address}，tinyproxy 已在執行。"
-  fi
-)
 
 ########################################
 # NVM
@@ -153,16 +86,60 @@ fi
 ########################################
 # uv / Neovim providers
 ########################################
-if [[ -f "$SCRIPT_DIR/../scripts/install-common.sh" ]]; then
-  bash "$SCRIPT_DIR/../scripts/install-common.sh"
-else
-  (
-    PROVIDER_INSTALLER=$(mktemp)
-    trap 'rm -f "$PROVIDER_INSTALLER"' EXIT
-    curl -fsSL --retry 3 https://raw.githubusercontent.com/leimouhong/dotfiles/main/scripts/install-common.sh -o "$PROVIDER_INSTALLER"
-    bash "$PROVIDER_INSTALLER"
-  )
-fi
+(
+  set -euo pipefail
+
+  WORK_DIR=$(mktemp -d)
+  trap 'rm -rf "$WORK_DIR"' EXIT
+  export PATH="$HOME/.local/bin:$PATH"
+  export UV_TOOL_BIN_DIR="$HOME/.local/bin"
+
+  if ! command -v uv >/dev/null 2>&1; then
+    brew install uv
+  fi
+
+  echo "==> uv 安裝 Python 3.12 與 pynvim"
+  # Mac 的使用者命令預設為 Python 3.12。
+  uv python install 3.12 --default
+  uv python pin --global 3.12
+  PYTHON=$(uv python find --managed-python 3.12)
+  PIPX_PYNVIM=0
+  if command -v pipx >/dev/null 2>&1; then
+    pipx list --json > "$WORK_DIR/pipx.json"
+    PIPX_PYNVIM=$("$PYTHON" -c 'import json, sys; print(int("pynvim" in json.load(open(sys.argv[1]))["venvs"]))' "$WORK_DIR/pipx.json")
+  fi
+
+  if [[ "$PIPX_PYNVIM" == 1 ]]; then
+    # 先準備並驗證 uv 環境，再移除 pipx 的 pynvim；不影響其他 pipx 工具。
+    UV_TOOL_BIN_DIR="$WORK_DIR/bin" uv tool install --force --managed-python --python 3.12 'pynvim>=0.6.0'
+    "$(uv tool dir)/pynvim/bin/python" -c 'import pynvim, sys; assert sys.version_info[:2] == (3, 12)'
+    pipx uninstall pynvim
+    uv tool install --force --offline --managed-python --python 3.12 'pynvim>=0.6.0'
+  else
+    uv tool install --managed-python --python 3.12 'pynvim>=0.6.0'
+  fi
+  "$(uv tool dir)/pynvim/bin/python" -c 'import pynvim, sys; assert sys.version_info[:2] == (3, 12)'
+
+  echo "==> 安裝目前 Node 版本的 Neovim provider"
+  npm install --global neovim
+  # tree-sitter-cli 已由 Homebrew 安裝。
+
+  echo "==> 驗證 Neovim 的 Python / Node provider"
+  cat > "$WORK_DIR/check-provider.lua" <<'LUA'
+vim.g.python3_host_prog = vim.fn.expand("~/.local/bin/pynvim-python")
+assert(vim.fn.has("python3") == 1, "Python provider unavailable")
+assert(vim.fn.py3eval("6 * 7") == 42, "Python evaluation failed")
+local version = vim.fn.py3eval('__import__("sys").version.split()[0]')
+assert(version:match("^3%.12%."), "Expected Python 3.12, got " .. version)
+vim.cmd([[python3 vim.vars['provider_check'] = 'ok']])
+assert(vim.g.provider_check == "ok", "Python RPC failed")
+assert(vim.fn["provider#node#Prog"]() ~= "", "Node provider unavailable")
+local channel = vim.fn["remote#host#Require"]("node")
+assert(channel > 0 and vim.fn.rpcrequest(channel, "poll") == "ok", "Node RPC failed")
+print("Neovim providers OK; Python " .. version)
+LUA
+  nvim --headless -u NONE -i NONE -n -l "$WORK_DIR/check-provider.lua"
+)
 
 ########################################
 # 套用 zellij 設定

@@ -1,154 +1,86 @@
 # dotfiles
 
-macOS、Ubuntu 與機器人的終端設定。線上指令使用 GitHub `main`。
+macOS、Ubuntu 電腦與機器人的個人終端環境。
 
 ## 安裝
 
-### macOS
+在專案根目錄，以一般使用者執行，依平台擇一：
 
 ```bash
+bash mac/install.sh                 # macOS
+bash ubuntu/install.sh --computer   # Ubuntu 電腦
+bash ubuntu/install.sh --robot      # Ubuntu 機器人
+```
+
+Ubuntu 支援 22.04／24.04、amd64／arm64；省略參數會詢問安裝模式。需要先能連網，安裝過程會使用 `sudo`。
+
+也可直接執行 GitHub `main` 上的版本：
+
+```bash
+# macOS
 bash <(curl -fsSL https://raw.githubusercontent.com/leimouhong/dotfiles/main/mac/install.sh)
-source ~/.zshrc
-```
 
-安裝時會詢問 Mac／機器人 IP、啟動 tinyproxy，最後啟用 Tailscale 並登入。既有 `.zshrc` 與 `.zprofile` 會先備份。
-
-### Ubuntu
-
-適用 Ubuntu 22.04／24.04，amd64／arm64。套用前會備份原有設定。
-
-```bash
+# Ubuntu：互動選擇電腦或機器人
 bash <(curl -fsSL https://raw.githubusercontent.com/leimouhong/dotfiles/main/ubuntu/install.sh)
-source ~/.bashrc
 ```
 
-### Robot
+| Ubuntu 安裝內容 | 電腦 | 機器人 |
+| --- | --- | --- |
+| mouhong、ble.sh、fzf、eza、zoxide、Zellij、Codex CLI、LazyVim | ✓ | ✓ |
+| Git／C/C++ 工具、nvm、uv Python 3.12／Neovim provider | ✓ | ✓ |
+| 系統 Python／OpenCV 開發套件、VS Code、Fcitx5 拼音 | ✓ | 不安裝 |
+| ROS 2 Humble | 僅 22.04 | 不安裝／不自動載入 |
+| keyd | 安裝程式，映射手動啟用 | 不安裝 |
 
-先完成 Mac 安裝並接上網線：Mac 有線 IP 預設 `192.168.10.10/24`、路由器留空；Robot IP 為 `192.168.10.102`。Mac 保持可上網，並確認 `brew services info tinyproxy` 顯示服務運行。
+機器人保留原有系統 Python、ROS 及廠商設定；個人工具的 Python 由 uv 獨立管理。Mac 使用 Zsh，會備份並更新 `.zshrc`／`.zprofile`，以 uv 設定使用者預設 Python 3.12，最後啟用 Tailscale。
 
-在機器人執行，代理 IP 請依實際設定修改：
+## Ubuntu 日常使用
 
 ```bash
-bash <(curl -fsSL --proxy http://192.168.10.10:8888 --noproxy "" \
-  https://raw.githubusercontent.com/leimouhong/dotfiles/main/robot/install.sh)
-source ~/.bashrc
+mouhong   # 進入個人 Bash
+nvim      # 個人 LazyVim
+zellij    # 個人 Zellij
+codex     # 首次使用依提示登入
+exit      # 返回原本 Shell
 ```
 
-只設定代理：在安裝指令最後加 `--proxy-only`。安裝過程使用 Mac 代理，新終端預設關閉代理。
+SSH 登入及一般終端不會自動啟用個人環境。`exit` 還原原本 Shell 的環境；套件、輸入法及 Tailscale 獨立運作。在 Zellij 內 `exit` 只關閉窗格，離開 Zellij 後再退出個人 Shell。
 
-載入 `.bashrc` 後，執行 `codex` 會自動在子程序啟用 Mac 代理，並以 `--no-daemon` 獨立啟動；所有參數原樣傳遞，目前終端的代理狀態不受影響。
+個人設定位於 `~/.config/mouhong/`，Neovim 位於 `~/.config/nvim-mouhong/`（支援自訂 XDG 目錄）；原有 Bash、Neovim、Zellij 及 Codex 設定會保留。舊版升級會備份並遷移可辨識的個人 Bash／robot 代理區塊；完成後重新開啟終端或 SSH。
 
-完整安裝也會將 Codex 設定寫入 `~/.codex/config.toml`（有設定 `CODEX_HOME` 時使用該目錄），Codex 已安裝時仍會套用。既有設定若不同，會先備份至同目錄的 `backup.*` 資料夾，再以安裝範本整份替換。
+電腦安裝 Fcitx5 後，**登出圖形桌面再登入**；`Ctrl+Space` 切換輸入法，`fcitx5-configtool` 管理拼音。keyd 映射需手動部署 [default.conf](ubuntu/keyd/default.conf) 至 `/etc/keyd/default.conf` 並啟用服務。
 
-Codex 預設不詢問命令批准、允許完整檔案與網路存取、使用 `xhigh` 推理及即時網頁搜尋，文字日誌固定寫入 `/home/booster/.codex/log`；終端保留捲動歷史並關閉動畫。`xhigh` 需要目前使用的模型支援。
+## Tailscale
 
-### 單獨安裝
+Ubuntu 安裝最後會詢問是否啟用 Tailscale，以及是否選用 Hetzner **`100.78.131.72`** 作為 exit node。兩項預設皆否；略過會保留現有設定。
 
-zellij（Mac／Ubuntu）：
+- **電腦**：選擇啟用後設定開機自啟。
+- **機器人**：選擇啟用後只啟動本次，取消開機自啟；保留 DNS、不接受其他設備的子網路路由。
+- 選用 Hetzner 時，兩種模式都允許存取本地 LAN。機器人不再使用 `proxy_on` 或 Mac 代理。
+
+機器人手動啟動：
 
 ```bash
-bash <(curl -fsSL https://raw.githubusercontent.com/leimouhong/dotfiles/main/zellij/install.sh)
+sudo systemctl start tailscaled
+sudo tailscale up
 ```
 
-LazyVim 設定（Ubuntu，需先備妥 Neovim、Git 與依賴，並關閉 Neovim）：
+使用完畢後關閉：
 
 ```bash
-bash <(curl -fsSL https://raw.githubusercontent.com/leimouhong/dotfiles/main/ubuntu/nvim/install.sh)
+sudo tailscale down
+sudo systemctl stop tailscaled
 ```
 
-本機專案可直接執行 `bash mac/install.sh`、`bash ubuntu/install.sh` 或 `bash robot/install.sh`。Mac／Ubuntu 共用的 Python 與 Neovim 依賴集中在 `scripts/install-common.sh`，完整安裝會自動呼叫。
+`--accept-dns=false`、`--accept-routes=false`、exit node 及 `--exit-node-allow-lan-access=true` 設定會保存，停止服務或重開機後不用重設。連線後可用 `tailscale status` 查看狀態。
 
-### 清理備份
+機器人平時停止背景服務，以減少虛擬網路介面對 ROS 2／DDS 的影響；不採用背景服務自啟後再 `down`。`mouhong`／`exit` 不會切換 Tailscale。曾用舊版設定自啟的機器人，可執行 `sudo systemctl disable tailscaled` 取消自啟。
 
-先預覽：
+## 清理備份
 
 ```bash
-bash <(curl -fsSL https://raw.githubusercontent.com/leimouhong/dotfiles/main/scripts/clean-backups.sh) --dry-run
+bash scripts/clean-backups.sh --dry-run   # 預覽
+bash scripts/clean-backups.sh             # 刪除符合規則的安裝備份
 ```
 
-確認後刪除：
-
-```bash
-bash <(curl -fsSL https://raw.githubusercontent.com/leimouhong/dotfiles/main/scripts/clean-backups.sh)
-```
-
-本機也可執行 `bash scripts/clean-backups.sh --dry-run`，移除 `--dry-run` 即刪除。Codex 會清理 `~/.codex`（有設定 `CODEX_HOME` 時使用該目錄）下，名稱符合 `backup.<時間戳>.<六位隨機字元>` 且含 `config.toml` 的備份目錄；跳過以符號連結指向的備份目錄。
-
-新版 zellij 的 `backup.*` 目錄與 `/opt/neovim/` 舊版本目前不在清理範圍。
-
-## 功能與快捷鍵
-
-### 各平台
-
-| 設定 | 功能 |
-| --- | --- |
-| [Mac](mac/.zshrc) | zsh 補全、建議與高亮、Starship、fastfetch、Homebrew CLI、Neovim、zellij、uv、tinyproxy、Tailscale |
-| [Ubuntu](ubuntu/.bashrc) | Bash／ble.sh、LazyVim、zellij、uv、VS Code、SSH、C/C++ 工具；22.04 加裝 ROS 2 Humble |
-| [Robot](robot/install.sh) | Mac 代理、zellij、Codex；保留原有 `.bashrc`、ROS 與廠商設定 |
-
-Mac／Ubuntu 的 Python 3.12 與 pynvim 使用 uv，Node 使用 nvm。Mac 的 `python`、`python3` 預設指向 uv 管理的 Python 3.12，登入 shell 會優先使用 `~/.local/bin`，不再載入 Conda；Ubuntu 的系統 Python 與 ROS 依賴繼續由系統管理。安裝腳本不會自行卸載既有 Anaconda。
-
-專案各自保存 `.python-version`、`pyproject.toml` 與 `uv.lock`，`.venv` 不提交到 Git。NumPy／OpenCV 按專案安裝：
-
-```bash
-uv init --python 3.12 my-project
-cd my-project
-uv python pin 3.12
-uv add numpy opencv-python
-uv run python
-```
-
-已有 `requirements.txt` 的專案可用 `uv add -r requirements.txt` 匯入依賴；已有鎖定版本時加入 `-c requirements.lock` 作為約束。重建環境使用 `uv sync --locked`，執行測試使用 `uv run python -m pytest`。Python 版本由專案的 `.python-version` 優先決定，Mac 的全域預設為 3.12。
-
-Notebook 專案加入 `uv add --dev ipykernel`，在 VS Code 選擇專案的 `.venv/bin/python`。需要 JupyterLab 時加入 `uv add --dev jupyterlab`，以 `uv run jupyter lab` 啟動。
-
-### Mac／Ubuntu 終端
-
-| 指令／快捷鍵 | 功能 |
-| --- | --- |
-| `ls`、`l`／`ll`／`la`／`lt` | eza 列表／詳細／含隱藏檔／兩層目錄樹 |
-| `j 關鍵字`／`ji 關鍵字` | 跳到常用目錄／互動選擇 |
-| `bat 檔案`／`rg 關鍵字`／`fd 檔名` | 高亮閱讀／搜尋內容／搜尋檔案 |
-| `dust -d 2 .`／`btop` | 磁碟占用／資源監控 |
-| `lazygit`／`git diff` | Git 操作介面／delta 差異顯示 |
-| `Option+x`／`Alt+x` | fzf 搜尋檔案並插入路徑 |
-| `Option+c`／`Alt+c` | fzf 搜尋並切換目錄 |
-| `Ctrl+r`／`↑`／`↓` | 搜尋指令歷史 |
-| 按住 `Tab` ＋ `h/j/k/l` | Ubuntu 本機 keyd 方向鍵；單按仍是 Tab |
-
-Mac 的 Option 需設為 Alt／Meta，也可先按 `Esc` 再按 `x`／`c`。
-
-### zellij
-
-[共用設定](zellij/config.kdl)提供分割窗格、分頁、tokyo-night 主題與 autolock。執行 `zellij attach --create robot` 建立或接回工作階段；首次啟動需連網下載外掛。
-
-`→` 表示依序按鍵；以下從一般模式操作：
-
-| 快捷鍵 | 功能 |
-| --- | --- |
-| `Ctrl+p → n`／`h/j/k/l`／`w` | 新增窗格／切換窗格／全螢幕 |
-| `Ctrl+t → n`／`1…9` | 新增分頁／切換分頁 |
-| `Ctrl+o → d` | 離開並保留工作階段 |
-| `Ctrl+o → w` | 工作階段管理器 |
-| `Ctrl+g` | 鎖定／解鎖快捷鍵；autolock 鎖定時也可手動解鎖 |
-| `Esc` | 從窗格、分頁等模式回到一般模式 |
-
-### LazyVim
-
-Ubuntu 完整安裝會套用[個人設定](ubuntu/nvim/config)；Mac 沿用原有 Neovim 設定，Robot 不會安裝 LazyVim。首次啟動後執行 `:Lazy restore`、`:checkhealth`。
-
-補全清單不會自動選中第一項或插入候選文字。插入模式下按 `Tab` 接受補全（未選擇時採用第一項），按 `Enter` 換行；可用 `↑`／`↓` 或 `Ctrl+p`／`Ctrl+n` 選擇候選。沒有補全時，`Tab` 會跳至下一個 snippet 欄位或執行原本的縮排。
-
-| 快捷鍵（一般模式） | 功能 |
-| --- | --- |
-| `Space Space`／`Space /` | 搜尋檔案／專案文字 |
-| `Space g g`／`Space c f` | lazygit／格式化，需對應工具 |
-| `Ctrl+s`／`Space b d` | 儲存／關閉 buffer |
-| `Ctrl+h/j/k/l` | 切換分割視窗 |
-
-### 代理與 Tailscale
-
-- **Robot**：`proxy_on` 經 Mac 代理；`proxy_off` 使用原有網路，不會自動連接 Wi-Fi。
-- **Mac**：`brew services restart tinyproxy` 重啟代理。Tailscale 隨完整安裝啟用。
-- **Ubuntu**：安裝最後詢問是否啟用 Tailscale／exit node，預設略過。
-- **連線檢查**：`tailscale status`，或從 Mac 的 Tailscale App 查看。使用 exit node 連接本地機器人時，開啟 **Allow Local Network Access**。
+只清理可辨識的設定備份，包含舊版備份；保留目前配置、登入資料及 Tailscale 狀態。
