@@ -61,7 +61,7 @@ SSH 登入及一般終端不會自動啟用個人環境。`exit` 還原原本 Sh
 
 `tom` 內使用個人歷史規則，`exit` 後回到原本 Bash 的規則；已寫入共用歷史檔的紀錄仍會保留。
 
-升級會搬移舊個人設定及 Neovim 資料、移除舊指令入口，並刪除獨立的 `~/.local/state/tom/bash_history`（支援自訂 XDG 目錄，不合併舊歷史）。新舊目錄同時存在時會停止，避免覆蓋。每個使用者需先退出舊個人 Shell／Zellij，再各自升級；完成後重新開啟終端或 SSH，再執行 `tom`。
+重新執行安裝器可更新設定，完成後重新進入 `tom` 生效。
 
 電腦安裝 Fcitx5 後，**登出圖形桌面再登入**；`Ctrl+Space` 切換輸入法，`fcitx5-configtool` 管理拼音。keyd 會備份並部署 [default.conf](ubuntu/keyd/default.conf)，立即啟用並設定開機自啟；按住 `Tab` 配合 `h/j/k/l` 輸入方向鍵，單按仍是 Tab。
 
@@ -108,4 +108,4 @@ bash scripts/clean-backups.sh --dry-run   # 預覽
 bash scripts/clean-backups.sh             # 刪除符合規則的安裝備份
 ```
 
-只清理可辨識的設定備份，包含舊版備份；保留目前配置、登入資料及 Tailscale 狀態。
+只清理可辨識的安裝備份；保留目前配置、歷史紀錄、登入資料及 Tailscale 狀態。

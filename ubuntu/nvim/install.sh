@@ -11,18 +11,16 @@ SCRIPT_DIR="$(cd -- "$(dirname -- "${BASH_SOURCE[0]}")" && pwd)"
 CONFIG_HOME="${XDG_CONFIG_HOME:-$HOME/.config}"
 CONFIG_DIR="$CONFIG_HOME/nvim-tom"
 SOURCE_DIR="$SCRIPT_DIR/config"
-MIGRATOR="$SCRIPT_DIR/../migrate-bashrc.py"
 
 mkdir -p "$CONFIG_HOME"
 WORK_DIR="$(mktemp -d "$CONFIG_HOME/.nvim-install.XXXXXX")"
 trap 'rm -rf "$WORK_DIR"' EXIT
 
 # 支援直接執行本地腳本，也支援 bash <(curl ...)。
-if [[ ! -f "$SOURCE_DIR/init.lua" || ! -f "$MIGRATOR" ]]; then
+if [[ ! -f "$SOURCE_DIR/init.lua" ]]; then
   echo "==> 從 dotfiles 下載個人 LazyVim 設定"
   git clone -q --depth 1 https://github.com/leimouhong/dotfiles.git "$WORK_DIR/dotfiles"
   SOURCE_DIR="$WORK_DIR/dotfiles/ubuntu/nvim/config"
-  MIGRATOR="$WORK_DIR/dotfiles/ubuntu/migrate-bashrc.py"
 fi
 
 if [[ ! -f "$SOURCE_DIR/init.lua" || ! -f "$SOURCE_DIR/lua/config/lazy.lua" || ! -f "$SOURCE_DIR/lazy-lock.json" ]]; then
@@ -33,8 +31,6 @@ fi
 # 先完成複製，再移動既有設定，避免下載或複製失敗影響原有環境。
 mkdir "$WORK_DIR/config"
 cp -R "$SOURCE_DIR/." "$WORK_DIR/config/"
-
-python3 "$MIGRATOR" --nvim
 
 BACKUP_DIR=""
 if [[ -e "$CONFIG_DIR" || -L "$CONFIG_DIR" ]]; then

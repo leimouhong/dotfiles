@@ -170,8 +170,6 @@ install_personal_environment() (
   bash -n "$WORK_DIR/tom"
   zellij --config "$WORK_DIR/config.kdl" setup --check
 
-  # 驗證新設定後才搬移舊資料；目的地衝突時停止，保留雙方內容。
-  python3 "$SCRIPT_DIR/migrate-bashrc.py" --personal
   mkdir -p "$CONFIG_DIR/zellij"
 
   # 只備份及更新自己的檔案，原有 Bash / Zellij 設定不在部署目標中。
@@ -189,9 +187,6 @@ install_personal_environment() (
   bash "$SCRIPT_DIR/nvim/install.sh"
   # /usr/local/bin 在 Ubuntu 的預設 PATH 中，新 SSH 連線不用修改啟動檔。
   sudo install -m 0755 "$WORK_DIR/tom" /usr/local/bin/tom
-  sudo rm -f /usr/local/bin/mouhong
-  # 新設定已改用共用歷史，刪除舊的獨立歷史檔；不合併進 ~/.bash_history。
-  rm -f -- "${XDG_STATE_HOME:-$HOME/.local/state}/tom/bash_history"
   echo "✅ 個人環境已安裝。執行 tom 啟用，exit 返回原本 Shell。"
 )
 
@@ -344,12 +339,11 @@ if ! command -v python3 >/dev/null 2>&1; then
 fi
 
 # 線上入口也先取得完整部署檔案，所有設定使用同一份 checkout。
-if [[ ! -f "$SCRIPT_DIR/tom" || ! -f "$SCRIPT_DIR/migrate-bashrc.py" ]]; then
+if [[ ! -f "$SCRIPT_DIR/tom" || ! -f "$SCRIPT_DIR/.bashrc" ||
+      ! -f "$SCRIPT_DIR/../zellij/config.kdl" || ! -f "$SCRIPT_DIR/nvim/install.sh" ]]; then
   git clone -q --depth 1 https://github.com/leimouhong/dotfiles.git "$WORK_DIR/dotfiles"
   SCRIPT_DIR="$WORK_DIR/dotfiles/ubuntu"
 fi
-python3 "$SCRIPT_DIR/migrate-bashrc.py"
-
 if [[ "$INSTALL_PROFILE" == computer ]]; then
   echo "==> 安裝桌面 Fcitx5 + Pinyin"
   install_fcitx5

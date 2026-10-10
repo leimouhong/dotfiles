@@ -9,11 +9,6 @@ CONFIG_DIR="${DOTFILES_ZELLIJ_CONFIG_DIR:-${XDG_CONFIG_HOME:-$HOME/.config}/zell
 if [[ "$(uname -s)" == Linux && -z ${DOTFILES_ZELLIJ_CONFIG_DIR:-} ]]; then
   CONFIG_DIR="${XDG_CONFIG_HOME:-$HOME/.config}/tom/zellij"
 fi
-if [[ "$CONFIG_DIR" == "${XDG_CONFIG_HOME:-$HOME/.config}/tom/zellij" &&
-      ( -e "${XDG_CONFIG_HOME:-$HOME/.config}/mouhong" || -L "${XDG_CONFIG_HOME:-$HOME/.config}/mouhong" ) ]]; then
-  echo "偵測到舊版個人環境，請先執行 ubuntu/install.sh 完成 tom 升級，再單獨更新 Zellij。" >&2
-  exit 1
-fi
 WORK_DIR=$(mktemp -d)
 CONFIG_STAGE=""
 trap 'rm -rf "$WORK_DIR"; if [[ -n "$CONFIG_STAGE" ]]; then rm -f "$CONFIG_STAGE"; fi' EXIT
@@ -124,7 +119,7 @@ else
 fi
 
 echo ""
-echo "✅ 完成！設定已安裝至 $CONFIG_DIR（autolock plugin 首次啟動會自動下載）"
+echo "✅ 完成！設定已安裝至 ${CONFIG_DIR}（autolock plugin 首次啟動會自動下載）"
 if [[ "$CONFIG_DIR" == "${XDG_CONFIG_HOME:-$HOME/.config}/tom/zellij" ]]; then
   echo "   完整安裝後執行 tom，再執行 zellij。"
   printf '   也可單獨執行：zellij --config-dir %q\n' "$CONFIG_DIR"

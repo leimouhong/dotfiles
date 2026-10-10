@@ -54,7 +54,7 @@ cleanup_nvim_backups() {
   local config_home="$1" backup suffix app
   local suffix_regex='^[0-9]{8}_[0-9]{6}\.[[:alnum:]]{6}$'
 
-  for app in nvim nvim-tom nvim-mouhong; do
+  for app in nvim nvim-tom; do
     for backup in "$config_home/$app".backup.*; do
       [[ -d "$backup" && ! -L "$backup" ]] || continue
       suffix="${backup#"$config_home/$app.backup."}"
@@ -80,30 +80,14 @@ cleanup_config_directory_backups() {
 }
 
 cleanup_personal_backups() {
-  local config_home="$1" name app
-  # 舊名稱只用來辨識歷史備份，現行個人環境統一使用 tom。
-  for app in tom mouhong; do
-    for name in bashrc profile zellij/config.kdl; do
-      cleanup_file_backups "$config_home/$app/$name" '^[0-9]{8}_[0-9]{6}\.[[:alnum:]]{6}$'
-    done
-    cleanup_config_directory_backups "$config_home/$app/zellij" config.kdl
+  local config_home="$1" name
+  for name in bashrc profile zellij/config.kdl; do
+    cleanup_file_backups "$config_home/tom/$name" '^[0-9]{8}_[0-9]{6}\.[[:alnum:]]{6}$'
   done
+  cleanup_config_directory_backups "$config_home/tom/zellij" config.kdl
   cleanup_file_backups "$config_home/zellij/config.kdl"
   cleanup_config_directory_backups "$config_home/zellij" config.kdl
   cleanup_nvim_backups "$config_home"
-}
-
-cleanup_bash_migration_backups() {
-  local backup suffix app
-  # 時間戳 + Python tempfile 的八位尾碼；符號連結只刪連結本身。
-  for app in tom mouhong; do
-    for backup in "$HOME"/.bashrc.before-"$app".*; do
-      [[ -f "$backup" || -L "$backup" ]] || continue
-      suffix="${backup#"$HOME/.bashrc.before-$app."}"
-      [[ "$suffix" =~ ^[0-9]{8}_[0-9]{6}\.[a-z0-9_]{8}$ ]] || continue
-      remove_backup "$backup" -f
-    done
-  done
 }
 
 main() {
@@ -115,7 +99,7 @@ main() {
 用法：bash scripts/clean-backups.sh [--dry-run]
 
 自動刪除 Mac、Ubuntu、Robot、Codex、zellij 與 LazyVim 安裝腳本產生的設定備份。
-包括 tom 個人設定、舊 Robot 代理遷移、Fcitx5 輸入法選擇的備份。
+包括 tom 個人設定與 Fcitx5 輸入法選擇的備份。
 不刪除目前設定、歷史記錄、登入資料、Tailscale 狀態或 /opt/neovim 執行檔。
 Codex 備份目錄使用 CODEX_HOME，未設定時使用 ~/.codex。
   --dry-run  只列出符合條件的備份，不刪除
@@ -133,7 +117,6 @@ EOF
   cleanup_file_backups "$HOME/.zprofile"
   cleanup_file_backups "$HOME/.bashrc" '^[0-9]{8}_[0-9]{6}(\.[[:alnum:]]{6})?$'
   cleanup_file_backups "$HOME/.xinputrc" '^[0-9]{8}_[0-9]{6}\.[[:alnum:]]{6}$'
-  cleanup_bash_migration_backups
   cleanup_personal_backups "${XDG_CONFIG_HOME:-$HOME/.config}"
   if [[ ${XDG_CONFIG_HOME:-$HOME/.config} != "$HOME/.config" ]]; then
     cleanup_personal_backups "$HOME/.config"
