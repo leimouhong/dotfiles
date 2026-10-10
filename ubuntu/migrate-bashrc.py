@@ -1,6 +1,7 @@
 #!/usr/bin/env python3
-"""遷移舊版個人 Bash／Robot 代理區塊，保留廠商及使用者的其他內容。"""
+"""遷移個人設定名稱與舊 Bash／Robot 代理區塊，保留既有資料。"""
 
+import argparse
 import hashlib
 from datetime import datetime
 import os
@@ -34,7 +35,7 @@ def is_legacy(content):
 
 def has_personal_init(content):
     return any(marker in content for marker in (
-        b"__dotfiles_", b"blesh/ble.sh", b"mouhong/bashrc",
+        b"__dotfiles_", b"blesh/ble.sh", b"mouhong/bashrc", b"tom/bashrc",
     ))
 
 
@@ -92,12 +93,12 @@ def migrate(home, default=Path("/etc/skel/.bashrc")):
             raise SystemExit("找不到原有 .bashrc 備份或 /etc/skel/.bashrc；原檔未修改。")
         cleaned = without_robot_proxy(original.read_bytes())
 
-    with tempfile.TemporaryDirectory(prefix=".mouhong-migrate.", dir=home) as stage:
+    with tempfile.TemporaryDirectory(prefix=".tom-migrate.", dir=home) as stage:
         replacement = Path(stage) / "bashrc"
         replacement.write_bytes(cleaned)
         shutil.copystat(original, replacement)
         stamp = datetime.now().strftime("%Y%m%d_%H%M%S")
-        fd, backup = tempfile.mkstemp(prefix=f".bashrc.before-mouhong.{stamp}.", dir=home)
+        fd, backup = tempfile.mkstemp(prefix=f".bashrc.before-tom.{stamp}.", dir=home)
         os.close(fd)
         if bashrc.is_symlink():
             Path(backup).unlink()
@@ -109,5 +110,50 @@ def migrate(home, default=Path("/etc/skel/.bashrc")):
         print(f"已保存舊版個人 Bash 至 {backup}；登入設定還原自 {original}。")
 
 
+def migrate_personal_paths(home, *, nvim_only=False):
+    """搬移舊資料；先檢查全部目的地，衝突時不覆蓋任何一邊。"""
+    roots = {
+        "config": Path(os.environ.get("XDG_CONFIG_HOME") or home / ".config"),
+        "data": Path(os.environ.get("XDG_DATA_HOME") or home / ".local/share"),
+        "state": Path(os.environ.get("XDG_STATE_HOME") or home / ".local/state"),
+        "cache": Path(os.environ.get("XDG_CACHE_HOME") or home / ".cache"),
+    }
+    pairs = []
+    if not nvim_only:
+        pairs.extend((roots[kind] / "mouhong", roots[kind] / "tom")
+                     for kind in ("config", "state"))
+    pairs.extend((root / "nvim-mouhong", root / "nvim-tom")
+                 for root in roots.values())
+    planned = []
+    for old, new in dict.fromkeys(pairs):
+        if not os.path.lexists(old):
+            continue
+        if not old.is_dir() and not old.is_symlink():
+            raise SystemExit(f"舊個人設定路徑不是目錄：{old}；未遷移。")
+        if os.path.lexists(new):
+            raise SystemExit(f"新舊路徑同時存在：{old}、{new}。請先整理後重跑；未遷移或覆蓋。")
+        planned.append((old, new))
+
+    moved = []
+    try:
+        for old, new in planned:
+            old.rename(new)
+            moved.append((old, new))
+    except OSError:
+        for old, new in reversed(moved):
+            new.rename(old)
+        raise
+    for old, new in moved:
+        print(f"已遷移 {old} → {new}")
+
+
 if __name__ == "__main__":
-    migrate(Path.home())
+    parser = argparse.ArgumentParser(description=__doc__)
+    mode = parser.add_mutually_exclusive_group()
+    mode.add_argument("--personal", action="store_true", help="遷移個人 Shell、歷史及 Neovim 路徑")
+    mode.add_argument("--nvim", action="store_true", help="只遷移 Neovim 路徑")
+    args = parser.parse_args()
+    if args.personal or args.nvim:
+        migrate_personal_paths(Path.home(), nvim_only=args.nvim)
+    else:
+        migrate(Path.home())

@@ -2,8 +2,8 @@
 # 0. 僅互動式 shell 載入
 ########################################
 [[ $- != *i* ]] && return
-# 此檔只由 mouhong --rcfile 載入；不覆寫使用者的 ~/.bashrc。
-[[ ${MOUHONG_ACTIVE:-} == 1 ]] || return
+# 此檔只由 tom --rcfile 載入；不覆寫使用者的 ~/.bashrc。
+[[ ${TOM_ACTIVE:-} == 1 ]] || return
 
 export PATH="$HOME/.local/bin:/usr/local/bin:$PATH"
 # ble.sh 在互動設定之前載入（--noattach 模式）。
@@ -23,8 +23,8 @@ fi
 ########################################
 # 1. History
 ########################################
-mkdir -p "${XDG_STATE_HOME:-$HOME/.local/state}/mouhong"
-HISTFILE="${XDG_STATE_HOME:-$HOME/.local/state}/mouhong/bash_history"
+mkdir -p "${XDG_STATE_HOME:-$HOME/.local/state}/tom"
+HISTFILE="${XDG_STATE_HOME:-$HOME/.local/state}/tom/bash_history"
 HISTSIZE=100000
 HISTFILESIZE=100000
 HISTCONTROL=ignoredups
@@ -196,28 +196,28 @@ __dotfiles_path_prepend "$HOME/.local/bin"
 export PATH
 export EDITOR="nvim"
 export LESS='-R'
-PS1='[mouhong] \u@\h:\w\$ '
+PS1='[tom] \u@\h:\w\$ '
 
 # Git 偏好只傳給子程序；保留 ~/.gitconfig 及既有身份、remote 等設定。
 if command -v delta >/dev/null 2>&1; then
-  __mouhong_git_option() {
+  __tom_git_option() {
     local index="${GIT_CONFIG_COUNT:-0}"
     [[ "$index" =~ ^[0-9]+$ ]] || index=0
     export "GIT_CONFIG_KEY_$index=$1" "GIT_CONFIG_VALUE_$index=$2"
     export GIT_CONFIG_COUNT=$((index + 1))
   }
-  __mouhong_git_option core.pager delta
-  __mouhong_git_option interactive.diffFilter 'delta --color-only'
-  __mouhong_git_option delta.side-by-side true
-  __mouhong_git_option delta.line-numbers true
-  __mouhong_git_option delta.syntax-theme Dracula
-  unset -f __mouhong_git_option
+  __tom_git_option core.pager delta
+  __tom_git_option interactive.diffFilter 'delta --color-only'
+  __tom_git_option delta.side-by-side true
+  __tom_git_option delta.line-numbers true
+  __tom_git_option delta.syntax-theme Dracula
+  unset -f __tom_git_option
 fi
 
 ########################################
 # 5. ROS 2 Humble
 ########################################
-if [[ ${MOUHONG_PROFILE:-computer} == computer && -f /opt/ros/humble/setup.bash ]]; then
+if [[ ${TOM_PROFILE:-computer} == computer && -f /opt/ros/humble/setup.bash ]]; then
   source /opt/ros/humble/setup.bash
 fi
 

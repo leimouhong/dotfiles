@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-# dotfiles/ubuntu/install.sh（安裝一次，執行 mouhong 按需啟用）
+# dotfiles/ubuntu/install.sh（安裝一次，執行 tom 按需啟用）
 set -euo pipefail
 
 SCRIPT_DIR="$(cd -- "$(dirname -- "${BASH_SOURCE[0]}")" && pwd)"
@@ -155,20 +155,24 @@ install_claude_code() (
 install_personal_environment() (
   set -euo pipefail
   CONFIG_HOME="${XDG_CONFIG_HOME:-$HOME/.config}"
-  CONFIG_DIR="$CONFIG_HOME/mouhong"
-  mkdir -p "$CONFIG_DIR/zellij" "$HOME/.local/bin"
-  WORK_DIR=$(mktemp -d "$CONFIG_DIR/.install.XXXXXX")
+  CONFIG_DIR="$CONFIG_HOME/tom"
+  mkdir -p "$CONFIG_HOME" "$HOME/.local/bin"
+  WORK_DIR=$(mktemp -d "$CONFIG_HOME/.tom-install.XXXXXX")
   trap 'rm -rf "$WORK_DIR"' EXIT
 
   cp "$SCRIPT_DIR/.bashrc" "$WORK_DIR/bashrc"
-  cp "$SCRIPT_DIR/mouhong" "$WORK_DIR/mouhong"
+  cp "$SCRIPT_DIR/tom" "$WORK_DIR/tom"
   cp "$SCRIPT_DIR/../zellij/config.kdl" "$WORK_DIR/config.kdl"
   printf '%s\n' "${INSTALL_PROFILE:-computer}" > "$WORK_DIR/profile"
   # Zellij 每個新窗格都從入口載入個人 Bash，不會回到原有 ~/.bashrc。
-  printf '\n// Ubuntu 個人環境的新窗格\ndefault_shell "/usr/local/bin/mouhong"\n' >> "$WORK_DIR/config.kdl"
+  printf '\n// Ubuntu 個人環境的新窗格\ndefault_shell "/usr/local/bin/tom"\n' >> "$WORK_DIR/config.kdl"
   bash -n "$WORK_DIR/bashrc"
-  bash -n "$WORK_DIR/mouhong"
+  bash -n "$WORK_DIR/tom"
   zellij --config "$WORK_DIR/config.kdl" setup --check
+
+  # 驗證新設定後才搬移舊資料；目的地衝突時停止，保留雙方內容。
+  python3 "$SCRIPT_DIR/migrate-bashrc.py" --personal
+  mkdir -p "$CONFIG_DIR/zellij"
 
   # 只備份及更新自己的檔案，原有 Bash / Zellij 設定不在部署目標中。
   for config_name in bashrc zellij/config.kdl profile; do
@@ -184,8 +188,9 @@ install_personal_environment() (
 
   bash "$SCRIPT_DIR/nvim/install.sh"
   # /usr/local/bin 在 Ubuntu 的預設 PATH 中，新 SSH 連線不用修改啟動檔。
-  sudo install -m 0755 "$WORK_DIR/mouhong" /usr/local/bin/mouhong
-  echo "✅ 個人環境已安裝。執行 mouhong 啟用，exit 返回原本 Shell。"
+  sudo install -m 0755 "$WORK_DIR/tom" /usr/local/bin/tom
+  sudo rm -f /usr/local/bin/mouhong
+  echo "✅ 個人環境已安裝。執行 tom 啟用，exit 返回原本 Shell。"
 )
 
 install_fcitx5() (
@@ -337,7 +342,7 @@ if ! command -v python3 >/dev/null 2>&1; then
 fi
 
 # 線上入口也先取得完整部署檔案，所有設定使用同一份 checkout。
-if [[ ! -f "$SCRIPT_DIR/mouhong" || ! -f "$SCRIPT_DIR/migrate-bashrc.py" ]]; then
+if [[ ! -f "$SCRIPT_DIR/tom" || ! -f "$SCRIPT_DIR/migrate-bashrc.py" ]]; then
   git clone -q --depth 1 https://github.com/leimouhong/dotfiles.git "$WORK_DIR/dotfiles"
   SCRIPT_DIR="$WORK_DIR/dotfiles/ubuntu"
 fi
@@ -559,7 +564,7 @@ LUA
   nvim --headless -u NONE -i NONE -n -l "$WORK_DIR/check-provider.lua"
 )
 
-echo "==> 安裝 mouhong 個人環境（Bash / LazyVim / Zellij）"
+echo "==> 安裝 tom 個人環境（Bash / LazyVim / Zellij）"
 install_personal_environment
 
 echo "==> 安裝 Codex CLI"
@@ -580,12 +585,12 @@ if [[ "$CLAUDE_CODE_FAILED" == 1 ]]; then
 else
   echo "✅ 安裝完成（${INSTALL_PROFILE}）！"
 fi
-echo "   執行 mouhong 啟用，exit 返回原本 Shell。"
+echo "   執行 tom 啟用，exit 返回原本 Shell。"
 echo "   SSH 登入不會自動啟用；舊版使用者請重新開啟終端／SSH 連線。"
 if [[ "$INSTALL_PROFILE" == computer ]]; then
   echo "   Fcitx5 請登出圖形桌面後重新登入。"
 fi
 if [[ "$CLAUDE_CODE_FAILED" == 1 ]]; then
-  echo "   可在 mouhong 中重試：npm install --global --include=optional @anthropic-ai/claude-code@latest && claude --version" >&2
+  echo "   可在 tom 中重試：npm install --global --include=optional @anthropic-ai/claude-code@latest && claude --version" >&2
   exit 1
 fi

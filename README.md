@@ -26,7 +26,7 @@ bash <(curl -fsSL https://raw.githubusercontent.com/leimouhong/dotfiles/main/ubu
 
 | Ubuntu 安裝內容 | 電腦 | 機器人 |
 | --- | --- | --- |
-| mouhong、ble.sh、fzf、eza、zoxide、Zellij、Codex CLI、Claude Code、LazyVim | ✓ | ✓ |
+| tom、ble.sh、fzf、eza、zoxide、Zellij、Codex CLI、Claude Code、LazyVim | ✓ | ✓ |
 | Git／C/C++ 工具、nvm、uv Python 3.12／Neovim provider | ✓ | ✓ |
 | 系統 Python／OpenCV 開發套件、VS Code、Fcitx5 拼音 | ✓ | 不安裝 |
 | ROS 2 Humble | 僅 22.04 | 不安裝／不自動載入 |
@@ -41,7 +41,7 @@ Claude 安裝失敗時會繼續其餘設定及 Tailscale 步驟，最後顯示�
 ## Ubuntu 日常使用
 
 ```bash
-mouhong   # 進入個人 Bash
+tom       # 進入個人 Bash
 nvim      # 個人 LazyVim
 zellij    # 個人 Zellij
 codex     # 首次使用依提示登入
@@ -51,7 +51,9 @@ exit      # 返回原本 Shell
 
 SSH 登入及一般終端不會自動啟用個人環境。`exit` 還原原本 Shell 的環境；套件、輸入法、keyd 及 Tailscale 獨立運作。在 Zellij 內 `exit` 只關閉窗格，離開 Zellij 後再退出個人 Shell。
 
-個人設定位於 `~/.config/mouhong/`，Neovim 位於 `~/.config/nvim-mouhong/`（支援自訂 XDG 目錄）；原有 Bash、Neovim、Zellij 及 Codex 設定會保留。舊版升級會備份並遷移可辨識的個人 Bash／robot 代理區塊；完成後重新開啟終端或 SSH。
+個人設定位於 `~/.config/tom/`，Neovim 位於 `~/.config/nvim-tom/`，歷史檔為 `~/.local/state/tom/bash_history`（支援自訂 XDG 目錄）。原有 Bash、Neovim、Zellij 及 Codex 設定會保留。
+
+升級會搬移舊個人設定、歷史及 Neovim 資料，並移除舊指令入口；新舊目錄同時存在時會停止，避免覆蓋。每個使用者需先退出舊個人 Shell／Zellij，再各自升級；完成後重新開啟終端或 SSH，再執行 `tom`。
 
 電腦安裝 Fcitx5 後，**登出圖形桌面再登入**；`Ctrl+Space` 切換輸入法，`fcitx5-configtool` 管理拼音。keyd 會備份並部署 [default.conf](ubuntu/keyd/default.conf)，立即啟用並設定開機自啟；按住 `Tab` 配合 `h/j/k/l` 輸入方向鍵，單按仍是 Tab。
 
@@ -89,7 +91,7 @@ sudo tailscale set --exit-node=
 sudo tailscale set --exit-node=hetzner
 ```
 
-機器人平時停止背景服務，以減少虛擬網路介面對 ROS 2／DDS 的影響；不採用背景服務自啟後再 `down`。`mouhong`／`exit` 不會切換 Tailscale。
+機器人平時停止背景服務，以減少虛擬網路介面對 ROS 2／DDS 的影響；不採用背景服務自啟後再 `down`。`tom`／`exit` 不會切換 Tailscale。
 
 ## 清理備份
 

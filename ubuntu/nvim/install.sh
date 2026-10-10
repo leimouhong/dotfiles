@@ -9,18 +9,20 @@ fi
 
 SCRIPT_DIR="$(cd -- "$(dirname -- "${BASH_SOURCE[0]}")" && pwd)"
 CONFIG_HOME="${XDG_CONFIG_HOME:-$HOME/.config}"
-CONFIG_DIR="$CONFIG_HOME/nvim-mouhong"
+CONFIG_DIR="$CONFIG_HOME/nvim-tom"
 SOURCE_DIR="$SCRIPT_DIR/config"
+MIGRATOR="$SCRIPT_DIR/../migrate-bashrc.py"
 
 mkdir -p "$CONFIG_HOME"
 WORK_DIR="$(mktemp -d "$CONFIG_HOME/.nvim-install.XXXXXX")"
 trap 'rm -rf "$WORK_DIR"' EXIT
 
 # 支援直接執行本地腳本，也支援 bash <(curl ...)。
-if [[ ! -f "$SOURCE_DIR/init.lua" ]]; then
+if [[ ! -f "$SOURCE_DIR/init.lua" || ! -f "$MIGRATOR" ]]; then
   echo "==> 從 dotfiles 下載個人 LazyVim 設定"
   git clone -q --depth 1 https://github.com/leimouhong/dotfiles.git "$WORK_DIR/dotfiles"
   SOURCE_DIR="$WORK_DIR/dotfiles/ubuntu/nvim/config"
+  MIGRATOR="$WORK_DIR/dotfiles/ubuntu/migrate-bashrc.py"
 fi
 
 if [[ ! -f "$SOURCE_DIR/init.lua" || ! -f "$SOURCE_DIR/lua/config/lazy.lua" || ! -f "$SOURCE_DIR/lazy-lock.json" ]]; then
@@ -32,9 +34,11 @@ fi
 mkdir "$WORK_DIR/config"
 cp -R "$SOURCE_DIR/." "$WORK_DIR/config/"
 
+python3 "$MIGRATOR" --nvim
+
 BACKUP_DIR=""
 if [[ -e "$CONFIG_DIR" || -L "$CONFIG_DIR" ]]; then
-  BACKUP_DIR="$(mktemp -d "$CONFIG_HOME/nvim-mouhong.backup.$(date +%Y%m%d_%H%M%S).XXXXXX")"
+  BACKUP_DIR="$(mktemp -d "$CONFIG_HOME/nvim-tom.backup.$(date +%Y%m%d_%H%M%S).XXXXXX")"
   mv "$CONFIG_DIR" "$BACKUP_DIR/nvim"
   echo "   已備份原有設定至 $BACKUP_DIR/nvim"
 fi
@@ -49,5 +53,5 @@ if ! mv "$WORK_DIR/config" "$CONFIG_DIR"; then
 fi
 
 echo "✅ 已套用個人 LazyVim 設定至 $CONFIG_DIR"
-echo "   執行 mouhong 後開啟 nvim（或 NVIM_APPNAME=nvim-mouhong nvim）。"
+echo "   執行 tom 後開啟 nvim（或 NVIM_APPNAME=nvim-tom nvim）。"
 echo "   等待外掛安裝完成，再執行 :Lazy restore 與 :LazyHealth。"

@@ -7,7 +7,12 @@ CONFIG_URL="https://raw.githubusercontent.com/leimouhong/dotfiles/main/zellij/co
 CONFIG_DIR="${DOTFILES_ZELLIJ_CONFIG_DIR:-${XDG_CONFIG_HOME:-$HOME/.config}/zellij}"
 # Linux 預設使用個人位置；只有明確指定 DOTFILES_ZELLIJ_CONFIG_DIR 才另選目錄。
 if [[ "$(uname -s)" == Linux && -z ${DOTFILES_ZELLIJ_CONFIG_DIR:-} ]]; then
-  CONFIG_DIR="${XDG_CONFIG_HOME:-$HOME/.config}/mouhong/zellij"
+  CONFIG_DIR="${XDG_CONFIG_HOME:-$HOME/.config}/tom/zellij"
+fi
+if [[ "$CONFIG_DIR" == "${XDG_CONFIG_HOME:-$HOME/.config}/tom/zellij" &&
+      ( -e "${XDG_CONFIG_HOME:-$HOME/.config}/mouhong" || -L "${XDG_CONFIG_HOME:-$HOME/.config}/mouhong" ) ]]; then
+  echo "偵測到舊版個人環境，請先執行 ubuntu/install.sh 完成 tom 升級，再單獨更新 Zellij。" >&2
+  exit 1
 fi
 WORK_DIR=$(mktemp -d)
 CONFIG_STAGE=""
@@ -19,8 +24,8 @@ if [[ -f "$SCRIPT_DIR/config.kdl" ]]; then
 else
   curl -fsSL --retry 3 "$CONFIG_URL" -o "$WORK_DIR/config.kdl"
 fi
-if [[ "$CONFIG_DIR" == "${XDG_CONFIG_HOME:-$HOME/.config}/mouhong/zellij" && -x /usr/local/bin/mouhong ]]; then
-  printf '\n// Ubuntu 個人環境的新窗格\ndefault_shell "/usr/local/bin/mouhong"\n' >> "$WORK_DIR/config.kdl"
+if [[ "$CONFIG_DIR" == "${XDG_CONFIG_HOME:-$HOME/.config}/tom/zellij" && -x /usr/local/bin/tom ]]; then
+  printf '\n// Ubuntu 個人環境的新窗格\ndefault_shell "/usr/local/bin/tom"\n' >> "$WORK_DIR/config.kdl"
 fi
 
 # ZELLIJ_REINSTALL=1 可強制重裝已存在的 zellij
@@ -120,8 +125,8 @@ fi
 
 echo ""
 echo "✅ 完成！設定已安裝至 $CONFIG_DIR（autolock plugin 首次啟動會自動下載）"
-if [[ "$CONFIG_DIR" == "${XDG_CONFIG_HOME:-$HOME/.config}/mouhong/zellij" ]]; then
-  echo "   完整安裝後執行 mouhong，再執行 zellij。"
+if [[ "$CONFIG_DIR" == "${XDG_CONFIG_HOME:-$HOME/.config}/tom/zellij" ]]; then
+  echo "   完整安裝後執行 tom，再執行 zellij。"
   printf '   也可單獨執行：zellij --config-dir %q\n' "$CONFIG_DIR"
 else
   echo "   執行 zellij 啟動。"
