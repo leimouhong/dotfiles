@@ -148,26 +148,24 @@ bindkey '\ec' fzf-cd-widget
 ########################################
 # 僅在 zinit 成功載入時設定外掛，避免缺 zinit 時噴 command not found
 if command -v zinit >/dev/null 2>&1; then
+  # 先載入補全定義，再初始化補全系統
   _kaku_completions="$HOME/.config/kaku/zsh/plugins/zsh-completions/src"
+
   if (( ${fpath[(Ie)$_kaku_completions]} == 0 )); then
-    # 單引號讓檢查在延遲載入時執行，而非排程時展開。
-    zinit ice wait"0" silent atinit'
-      if ! (( ${+_comps} )); then
-        autoload -Uz compinit
-        if [[ -n ~/.zcompdump(#qN.mh+24) ]]; then
-          compinit
-        else
-          compinit -C
-        fi
-        [[ ~/.zcompdump -nt ~/.zcompdump.zwc ]] && { zcompile ~/.zcompdump } &!
-      fi
-      zicdreplay
-    '
     zinit light zsh-users/zsh-completions
-  else
-    zinit cdreplay -q
   fi
   unset _kaku_completions
+
+  # 以 compdef 函式判斷補全是否已初始化
+  if ! (( ${+functions[compdef]} )); then
+    autoload -Uz compinit
+    compinit
+  fi
+
+  # 初始化成功後才恢復插件補全
+  if (( ${+functions[compdef]} )); then
+    zinit cdreplay -q
+  fi
 
   # fzf-tab：增強 Tab 補全
   zinit ice wait"0" silent atload'
@@ -203,9 +201,10 @@ if command -v zinit >/dev/null 2>&1; then
     zinit light zsh-users/zsh-syntax-highlighting
   fi
 else
-  # zinit 缺失時的最小補全 fallback，確保仍有 Tab 補全
-  if ! (( ${+_comps} )); then
-    autoload -Uz compinit && compinit -C
+  # 沒有 zinit 時仍初始化補全
+  if ! (( ${+functions[compdef]} )); then
+    autoload -Uz compinit
+    compinit
   fi
 fi
 
@@ -314,7 +313,6 @@ fi
 export PATH="$HOME/.local/bin:$PATH"
 
 [[ ":$PATH:" != *":$HOME/.config/kaku/zsh/bin:"* ]] && export PATH="$HOME/.config/kaku/zsh/bin:$PATH" # Kaku PATH Integration
-[[ -f "$HOME/.config/kaku/zsh/kaku.zsh" ]] && source "$HOME/.config/kaku/zsh/kaku.zsh" # Kaku Shell Integration
 
 ########################################
 # 14. eza（最後套用，避免 Kaku 覆蓋個人別名）
