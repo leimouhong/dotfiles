@@ -49,7 +49,15 @@ claude    # Claude Code，首次使用依提示登入
 exit      # 返回原本 Shell
 ```
 
-SSH 登入及一般終端不會自動啟用個人環境。`exit` 還原原本 Shell 的環境；套件、輸入法、keyd 及 Tailscale 獨立運作。在 Zellij 內 `exit` 只關閉窗格，離開 Zellij 後再退出個人 Shell。
+預設手動執行 `tom`。安裝器會備份原本的 `~/.bashrc`，保留內容並在末尾追加自動進入開關；重跑不重複追加，也不重設你的選擇。編輯 `~/.bashrc` 中這一行，重新開啟終端生效：
+
+```bash
+TOM_AUTO_START=0  # 0：手動啟用；1：本機終端自動進入 tom
+```
+
+電腦和機器人都支援此開關，SSH、非互動腳本及已在 `tom` 內的 Shell 不會自動進入。若先前手動加入過自動啟動 `tom` 的段落，請移除該段，只保留安裝器加入的開關段落。
+
+`exit` 返回原本 Shell；即使開啟自動進入，也不會立即再次啟動 `tom`。套件、輸入法、keyd 及 Tailscale 獨立運作。在 Zellij 內 `exit` 只關閉窗格，離開 Zellij 後再退出個人 Shell。
 
 個人設定位於 `~/.config/tom/`，Neovim 位於 `~/.config/nvim-tom/`（支援自訂 XDG 目錄）。原有 Bash、Neovim、Zellij 及 Codex 設定會保留。
 

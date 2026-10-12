@@ -150,6 +150,42 @@ install_claude_code() (
   command claude --version
 )
 
+install_tom_autostart_switch() (
+  set -euo pipefail
+  local bashrc="$HOME/.bashrc" stage backup_file
+  # 重跑保留使用者的開關，也避免追加第二份啟動邏輯。
+  if [[ -f "$bashrc" ]] && grep -Fqx '# >>> tom auto-start >>>' "$bashrc"; then
+    return 0
+  fi
+
+  stage=$(mktemp -d)
+  trap 'rm -rf "$stage"' EXIT
+  cat > "$stage/autostart" <<'EOF'
+
+# >>> tom auto-start >>>
+# 1：本機終端自動進入 tom；0：手動執行 tom（預設）。
+TOM_AUTO_START=0
+if [[ ${TOM_AUTO_START:-0} == 1 && $- == *i* && -t 0 && -t 1 &&
+      -z ${SSH_CONNECTION:-} && -z ${SSH_TTY:-} && ${TOM_ACTIVE:-0} != 1 ]] &&
+   command -v tom >/dev/null 2>&1; then
+  tom
+fi
+# <<< tom auto-start <<<
+EOF
+
+  # 先檢查合併後的語法；只追加內容，保留原檔及符號連結。
+  if [[ -e "$bashrc" || -L "$bashrc" ]]; then
+    cat "$bashrc" > "$stage/bashrc"
+  fi
+  cat "$stage/autostart" >> "$stage/bashrc"
+  bash -n "$stage/bashrc"
+  if [[ -e "$bashrc" || -L "$bashrc" ]]; then
+    backup_file=$(mktemp "$bashrc.backup.$(date +%Y%m%d_%H%M%S).XXXXXX")
+    cp -pL "$bashrc" "$backup_file"
+  fi
+  cat "$stage/autostart" >> "$bashrc"
+)
+
 # 以函式分段，整個 Ubuntu 安裝只有這個主入口。
 # 子 Shell 讓暫存目錄與 trap 不會影響主安裝流程。
 install_personal_environment() (
@@ -172,7 +208,7 @@ install_personal_environment() (
 
   mkdir -p "$CONFIG_DIR/zellij"
 
-  # 只備份及更新自己的檔案，原有 Bash / Zellij 設定不在部署目標中。
+  # 先備份及更新 tom 自己的檔案，不取代原有 Bash / Zellij 設定。
   for config_name in bashrc zellij/config.kdl profile; do
     stage_name="${config_name##*/}"
     if ! cmp -s "$WORK_DIR/$stage_name" "$CONFIG_DIR/$config_name"; then
@@ -187,7 +223,9 @@ install_personal_environment() (
   bash "$SCRIPT_DIR/nvim/install.sh"
   # /usr/local/bin 在 Ubuntu 的預設 PATH 中，新 SSH 連線不用修改啟動檔。
   sudo install -m 0755 "$WORK_DIR/tom" /usr/local/bin/tom
+  install_tom_autostart_switch
   echo "✅ 個人環境已安裝。執行 tom 啟用，exit 返回原本 Shell。"
+  echo "   自動進入開關在 ~/.bashrc：TOM_AUTO_START=1 開啟，0 關閉；重跑保留選擇。"
 )
 
 install_fcitx5() (
