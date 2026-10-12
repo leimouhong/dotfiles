@@ -61,7 +61,7 @@ TOM_AUTO_START=0  # 0：手動啟用；1：本機終端自動進入 tom
 
 個人設定位於 `~/.config/tom/`，Neovim 位於 `~/.config/nvim-tom/`（支援自訂 XDG 目錄）。原有 Bash、Neovim、Zellij 及 Codex 設定會保留。
 
-電腦和機器人的 `tom` 都先載入原本 `~/.bashrc`，再套用 `~/.config/tom/bashrc` 的個人設定。原有 ROS 設定、alias 及函式會保留，同名項目以 `tom` 為準。原本的啟動指令會再執行一次；機器人仍會清除代理環境變數。
+電腦和機器人的 `tom` 都先載入原本 `~/.bashrc`，再套用 `~/.config/tom/bashrc` 的個人設定。提示符與顏色沿用原本設定。原有 ROS 設定、alias 及函式會保留，同名項目以 `tom` 為準。原本的啟動指令會再執行一次；機器人仍會清除代理環境變數。
 
 `tom` 保留原本 PATH 的順序，沿用 Python 虛擬環境／Conda 和目前 Node／nvm，不強制切換最新 Node；尚無 Node 時才使用 nvm 的 `default`。已有 ROS／工作空間時不再載入 Humble；只有電腦模式在未載入 ROS 時補上已安裝的 Humble。原本 `.bashrc` 自己的環境切換指令仍會執行。
 

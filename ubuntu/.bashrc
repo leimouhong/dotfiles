@@ -5,7 +5,7 @@
 # 此檔只由 tom --rcfile 載入；不覆寫使用者的 ~/.bashrc。
 [[ ${TOM_ACTIVE:-} == 1 ]] || return
 
-# 先載入原有設定，保留 ROS、alias、函式及未匯出的變數。
+# 先載入原有設定，保留提示符、ROS、alias、函式及未匯出的變數。
 # TOM_ACTIVE 已由入口設定，可供原有 bashrc 的自動啟動判斷避免再次執行 tom。
 [[ ! -r "$HOME/.bashrc" ]] || source "$HOME/.bashrc"
 if [[ ${TOM_PROFILE:-computer} == robot ]]; then
@@ -190,7 +190,6 @@ fi
 ########################################
 export EDITOR="nvim"
 export LESS='-R'
-PS1='[tom] \u@\h:\w\$ '
 
 # Git 偏好只傳給子程序；保留 ~/.gitconfig 及既有身份、remote 等設定。
 if command -v delta >/dev/null 2>&1; then
