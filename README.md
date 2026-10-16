@@ -29,10 +29,11 @@ bash <(curl -fsSL https://raw.githubusercontent.com/leimouhong/dotfiles/main/ubu
 | tom、ble.sh、fzf、eza、zoxide、Zellij、Codex CLI、Claude Code、LazyVim | ✓ | ✓ |
 | Git／C/C++ 工具、nvm、uv Python 3.12／Neovim provider | ✓ | ✓ |
 | 系統 Python／OpenCV 開發套件、VS Code、Fcitx5 拼音 | ✓ | 不安裝 |
+| RustDesk | 安裝、背景執行並開機自啟 | 不安裝 |
 | ROS 2 Humble | 僅 22.04 | 不安裝／不自動載入 |
 | keyd | 安裝、套用映射並開機自啟 | 不安裝 |
 
-機器人保留原有系統 Python、ROS 及廠商設定；個人工具的 Python 由 uv 獨立管理。Mac 使用 Zsh，會備份並更新 `.zshrc`／`.zprofile`，以 uv 設定使用者預設 Python 3.12，最後啟用 Tailscale。
+機器人保留原有系統 Python、ROS 及廠商設定；個人工具的 Python 由 uv 獨立管理。Mac 使用 Zsh，會先取得並檢查 Zsh／Zellij 設定，再備份及更新；下載或檢查失敗時保留原檔。Mac 以 uv 設定使用者預設 Python 3.12，最後啟用 Tailscale。
 
 Claude Code 採用[官方支援的安裝方式](https://code.claude.com/docs/en/setup)：Mac 用 Homebrew，兩種 Ubuntu 模式用 npm。保留既有安裝、設定及登入資料；執行 `claude`，首次使用依提示登入。
 
@@ -72,6 +73,17 @@ TOM_AUTO_START=0  # 0：手動啟用；1：本機終端自動進入 tom
 重新執行安裝器可更新設定，完成後重新進入 `tom` 生效。
 
 電腦安裝 Fcitx5 後，**登出圖形桌面再登入**；`Ctrl+Space` 切換輸入法，`fcitx5-configtool` 管理拼音。keyd 會備份並部署 [default.conf](ubuntu/keyd/default.conf)，立即啟用並設定開機自啟；按住 `Tab` 配合 `h/j/k/l` 輸入方向鍵，單按仍是 Tab。
+
+RustDesk 僅在電腦模式安裝，使用[官方 `.deb`](https://rustdesk.com/docs/en/client/linux/)，自動選擇 amd64／arm64。首次安裝下載最新穩定版；重跑保留既有版本及設定，並確保背景服務已啟用、開機自啟。關閉視窗或退出 `tom` 不會停止服務。
+
+```bash
+rustdesk                                  # 開啟介面，查看 ID 及設定連線權限
+systemctl status rustdesk.service          # 查看背景服務
+sudo systemctl disable --now rustdesk.service  # 停止並取消開機自啟
+sudo systemctl enable --now rustdesk.service   # 啟動並恢復開機自啟
+```
+
+背景服務不代表所有桌面都能無人值守連線；Wayland 可能需要本機授權，遠端登入畫面的限制見[官方說明](https://rustdesk.com/docs/en/client/linux/#login-screen)。
 
 ## Tailscale
 

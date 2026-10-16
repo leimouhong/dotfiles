@@ -167,8 +167,14 @@ elif command -v fzf >/dev/null 2>&1; then
   bind -m vi-insert -x '"\ex": fzf-file-widget' 2>/dev/null
 
   # Alt-C 目錄跳轉（ESC+c）
-  bind -m emacs -x '"\ec": __fzf_cd__' 2>/dev/null
-  bind -m vi-insert -x '"\ec": __fzf_cd__' 2>/dev/null
+  # __fzf_cd__ 輸出已跳脫的 cd 指令，需在目前 Shell 執行才會切換目錄。
+  __dotfiles_fzf_cd_widget() {
+    local cd_command
+    cd_command=$(__fzf_cd__) || return
+    builtin eval "$cd_command"
+  }
+  bind -m emacs -x '"\ec": __dotfiles_fzf_cd_widget' 2>/dev/null
+  bind -m vi-insert -x '"\ec": __dotfiles_fzf_cd_widget' 2>/dev/null
 
   # Ctrl-R 歷史搜尋：直接逐行讀取共用 HISTFILE
   bind -m emacs -x '"\C-r": __dotfiles_fzf_history_widget' 2>/dev/null

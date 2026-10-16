@@ -24,7 +24,7 @@ remove_backup() {
 
 cleanup_file_backups() {
   local original="$1" backup suffix
-  local suffix_regex='^[0-9]{8}_[0-9]{6}$'
+  local suffix_regex='^[0-9]{8}_[0-9]{6}(\.[[:alnum:]]{6})?$'
   suffix_regex="${2:-$suffix_regex}"
 
   for backup in "$original".backup.*; do

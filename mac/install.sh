@@ -162,46 +162,54 @@ if ! (
 fi
 
 ########################################
-# 套用 zellij 設定
+# 套用設定（先取得並驗證全部檔案，再備份及替換）
 ########################################
-echo "==> 套用 zellij 設定"
-mkdir -p "$HOME/.config/zellij"
-if [[ -f "$HOME/.config/zellij/config.kdl" ]]; then
-  cp "$HOME/.config/zellij/config.kdl" "$HOME/.config/zellij/config.kdl.backup.$(date +%Y%m%d_%H%M%S)"
-  echo "   已備份原有 zellij 設定至 ~/.config/zellij/config.kdl.backup.*"
-fi
-if [[ -f "$SCRIPT_DIR/../zellij/config.kdl" ]]; then
-  cp "$SCRIPT_DIR/../zellij/config.kdl" "$HOME/.config/zellij/config.kdl"
-else
-  curl -fsSL https://raw.githubusercontent.com/leimouhong/dotfiles/main/zellij/config.kdl -o "$HOME/.config/zellij/config.kdl"
-fi
+install_mac_configs() (
+  set -euo pipefail
+  local stage relative name target pending="" backup
+  stage=$(mktemp -d)
+  trap 'rm -rf "$stage"; if [[ -n "$pending" ]]; then rm -f "$pending"; fi' EXIT
+  for relative in zellij/config.kdl mac/.zprofile mac/.zshrc; do
+    name="${relative##*/}"
+    if [[ -f "$SCRIPT_DIR/../$relative" ]]; then
+      cp "$SCRIPT_DIR/../$relative" "$stage/$name"
+    else
+      curl -fsSL --retry 3 "https://raw.githubusercontent.com/leimouhong/dotfiles/main/$relative" -o "$stage/$name"
+    fi
+    # 空白下載仍是合法 Shell 語法，必須另外檢查。
+    [[ -s "$stage/$name" ]] || { echo "設定檔是空白：$relative" >&2; return 1; }
+  done
+  zsh -n "$stage/.zprofile"
+  zsh -n "$stage/.zshrc"
+  zellij --config "$stage/config.kdl" setup --check
 
-########################################
-# 套用登入 shell 設定
-########################################
-echo "==> 套用 .zprofile"
-if [[ -f "$HOME/.zprofile" ]]; then
-  cp "$HOME/.zprofile" "$HOME/.zprofile.backup.$(date +%Y%m%d_%H%M%S)"
-fi
-if [[ -f "$SCRIPT_DIR/.zprofile" ]]; then
-  cp "$SCRIPT_DIR/.zprofile" "$HOME/.zprofile"
-else
-  curl -fsSL https://raw.githubusercontent.com/leimouhong/dotfiles/main/mac/.zprofile -o "$HOME/.zprofile"
-fi
+  for name in config.kdl .zprofile .zshrc; do
+    if [[ "$name" == config.kdl ]]; then
+      target="${XDG_CONFIG_HOME:-$HOME/.config}/zellij/config.kdl"
+    else
+      target="$HOME/$name"
+    fi
+    if cmp -s "$stage/$name" "$target"; then
+      echo "   設定相同，保留 $target"
+      continue
+    fi
+    mkdir -p "$(dirname -- "$target")"
+    pending=$(mktemp "$target.install.XXXXXX")
+    cp "$stage/$name" "$pending"
+    if [[ -e "$target" || -L "$target" ]]; then
+      backup=$(mktemp "$target.backup.$(date +%Y%m%d_%H%M%S).XXXXXX")
+      cp -P "$target" "$backup"
+      echo "   已備份至 $backup"
+    fi
+    # 替換入口而非寫穿符號連結，不改動連結指向的原檔。
+    mv -f "$pending" "$target"
+    pending=""
+    echo "   已套用 $target"
+  done
+)
 
-########################################
-# 套用 .zshrc
-########################################
-echo "==> 套用 .zshrc"
-if [[ -f "$HOME/.zshrc" ]]; then
-  cp "$HOME/.zshrc" "$HOME/.zshrc.backup.$(date +%Y%m%d_%H%M%S)"
-  echo "   已備份原有 .zshrc 至 ~/.zshrc.backup.*"
-fi
-if [[ -f "$SCRIPT_DIR/.zshrc" ]]; then
-  cp "$SCRIPT_DIR/.zshrc" "$HOME/.zshrc"
-else
-  curl -fsSL https://raw.githubusercontent.com/leimouhong/dotfiles/main/mac/.zshrc -o "$HOME/.zshrc"
-fi
+echo "==> 套用 Zellij 與 Zsh 設定"
+install_mac_configs
 
 ########################################
 # Tailscale（最後連線，首次登入不阻塞其他套件安裝）

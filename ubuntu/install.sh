@@ -12,6 +12,7 @@ usage() {
   --robot     機器人：共用個人環境，保留系統 Python、ROS 及廠商設定
   不加參數    互動選擇；非互動執行必須明確指定模式
 
+電腦模式會安裝 RustDesk，立即啟動背景服務並設定開機自啟。
 兩種模式最後都會詢問是否啟用 Tailscale，以及是否使用
 Hetzner 100.78.131.72 作為出口；非互動執行略過網路設定。
 啟用時：電腦設定開機自啟，機器人只啟動本次、之後手動開啟。
@@ -65,6 +66,42 @@ install_base_packages() {
   sudo apt install -y "${packages[@]}"
 }
 
+install_rustdesk() (
+  set -euo pipefail
+  [[ ${INSTALL_PROFILE:-} == computer ]] || return 0
+  local installed_status arch release_arch tag version stage
+  installed_status=$(dpkg-query -W -f='${db:Status-Status}' rustdesk 2>/dev/null || true)
+  if [[ "$installed_status" != installed ]]; then
+    arch=$(dpkg --print-architecture)
+    case "$arch" in
+      amd64) release_arch=x86_64 ;;
+      arm64) release_arch=aarch64 ;;
+      *) echo "RustDesk 不支援此安裝架構：$arch" >&2; return 1 ;;
+    esac
+    tag=$(_latest_v rustdesk/rustdesk)
+    version="${tag#v}"
+    stage=$(mktemp -d)
+    trap 'rm -rf "$stage"' EXIT
+    # 使用官方穩定版 .deb，包含 systemd 背景服務；由 apt 安裝相依套件。
+    curl -fsSL --retry 3 \
+      "https://github.com/rustdesk/rustdesk/releases/download/$tag/rustdesk-$version-$release_arch.deb" \
+      -o "$stage/rustdesk.deb"
+    if [[ $(dpkg-deb -f "$stage/rustdesk.deb" Package) != rustdesk ||
+          $(dpkg-deb -f "$stage/rustdesk.deb" Architecture) != "$arch" ]]; then
+      echo "RustDesk 下載套件無效或架構不符，未執行安裝。" >&2
+      return 1
+    fi
+    sudo apt install -y "$stage/rustdesk.deb"
+  else
+    echo "   保留既有 RustDesk 版本及設定。"
+  fi
+  sudo systemctl daemon-reload
+  sudo systemctl enable --now rustdesk.service
+  sudo systemctl is-enabled --quiet rustdesk.service
+  sudo systemctl is-active --quiet rustdesk.service
+  echo "   RustDesk 背景服務已啟動並設定開機自啟；不依賴 tom 或視窗保持開啟。"
+)
+
 confirm() {
   local answer
   [[ -t 0 ]] || return 1
@@ -101,8 +138,21 @@ configure_tailscale() (
     sudo systemctl enable --now tailscaled
   fi
   echo "   首次使用請開啟下方登入網址，完成 Tailscale 登入。"
-  # 不帶偏好旗標，重跑時保留既有設定；指定偏好一律用 set 更新。
-  sudo tailscale up
+  if [[ "$INSTALL_PROFILE" == robot ]]; then
+    local backend_state
+    backend_state=$(sudo tailscale status --json \
+      | python3 -c 'import json, sys; print(json.load(sys.stdin)["BackendState"])')
+    case "$backend_state" in
+      NeedsLogin|NoState)
+        # 首次登入的 up 會建立偏好，必須明確帶上機器人的 DNS／路由選項。
+        sudo tailscale up --accept-dns=false --accept-routes=false
+        ;;
+      *) sudo tailscale up ;;
+    esac
+  else
+    # 已登入時不帶偏好旗標，保留既有 exit node 等設定。
+    sudo tailscale up
+  fi
   if confirm "是否使用 Hetzner（100.78.131.72）作為 exit node？N 保留目前出口設定。"; then
     sudo tailscale set --exit-node=100.78.131.72 --exit-node-allow-lan-access=true
     echo "   已選用 Hetzner，並允許存取本地 LAN。"
@@ -394,6 +444,9 @@ if [[ "$INSTALL_PROFILE" == computer ]]; then
     | sudo tee /etc/apt/sources.list.d/vscode.list >/dev/null
   sudo apt update -qq
   sudo apt install -y code
+
+  echo "==> 安裝 RustDesk 並啟用背景服務"
+  install_rustdesk
 fi
 
 if [[ "$INSTALL_PROFILE" == computer && "$UBUNTU_CODENAME" == jammy ]]; then

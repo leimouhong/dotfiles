@@ -285,7 +285,7 @@ fi
 [[ -d "$HOME/.antigravity/antigravity/bin" ]] && path=("$HOME/.antigravity/antigravity/bin" $path)
 
 # opencode
-export PATH=/Users/mouhong/.opencode/bin:$PATH
+[[ -d "$HOME/.opencode/bin" ]] && path=("$HOME/.opencode/bin" $path)
 
 # sbin
 export PATH="/opt/homebrew/sbin:$PATH"
