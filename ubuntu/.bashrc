@@ -191,6 +191,11 @@ fi
 export EDITOR="nvim"
 export LESS='-R'
 
+# 只加模式標記，保留原本提示符的顏色與格式，避免重複添加。
+if [[ ${PS1:-} != '[tom] '* ]]; then
+  PS1="[tom] ${PS1:-}"
+fi
+
 # Git 偏好只傳給子程序；保留 ~/.gitconfig 及既有身份、remote 等設定。
 if command -v delta >/dev/null 2>&1; then
   __tom_git_option() {
